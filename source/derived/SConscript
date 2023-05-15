@@ -1,5 +1,11 @@
 Import('*')
 
+
+target = ['#datastore/raw/cr-bound/link_list.csv',
+          '#datastore/raw/cr-bound/GPO*.pdf']
+source = ['#source/derived/scrape_bound.py']
+env.Python(target, source)
+
 target = ['#output/derived/wb_clean/gdp_education.csv']
 source = ['#source/derived/wb_clean/build.py',
           '#datastore/raw/world_bank/orig/API_NY.GDP.PCAP.CD_DS2_en_csv_v2_1740213.csv',
