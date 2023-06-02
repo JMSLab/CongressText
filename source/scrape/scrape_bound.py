@@ -2,6 +2,7 @@ import os
 import pandas as pd
 from selenium.webdriver import Chrome
 from selenium.webdriver import ChromeOptions
+from selenium.webdriver.common.by import By
 import pdb
 import time
 import re
@@ -10,15 +11,22 @@ import psutil
 
 ### downloads PDFs of the Congressional Record (bound version)
 def Main():
-    raw_dir = "datastore/raw/cr-bound"
+    raw_dir = "datastore/scrape/cr-bound"
 
-    link_list = GetLinks(raw_dir)
+    # note a single run will miss a small number of links
+    # run 3 types to make it likely that all links are scraped
+    link_list = GetLinks(raw_dir, redo = 0)
+    link_list = GetLinks(raw_dir, redo = 1)
+    link_list = GetLinks(raw_dir, redo = 1)
+
     DownloadPDFs(link_list)
 
 # gets a list of links to Congressional Record bound directories to download
-def GetLinks(infolder):
+# infolder: path of folder containing list of links
+# redo: binary, 1 if re-scraping link list (not first time)
+def GetLinks(infolder, redo = 0):
 
-    if not os.path.isfile('datastore/raw/cr-bound/link_list.csv'):
+    if (redo == 1) or (not os.path.isfile('datastore/scrape/cr-bound/link_list.csv')):
         # set up webdriver 
         chrome_options =ChromeOptions()
         # chrome_options.add_argument('--headless')
@@ -27,13 +35,14 @@ def GetLinks(infolder):
 
         # get web page
         driver.get("https://www.govinfo.gov/app/collection/crecb")
-        time.sleep(10) # seconds
+        time.sleep(20) # seconds
 
 
         # Loop through all the panel headings and click them to expand the panels
+        # source of some missed links when panels move
         panel_headings = driver.find_elements(by=By.CLASS_NAME, value="panel-heading")
         for panel_heading in panel_headings:
-            time.sleep(1) # seconds
+            time.sleep(5) # seconds
             panel_heading.click()
 
         # get href of buttons
@@ -42,11 +51,22 @@ def GetLinks(infolder):
         # only want pdf
         link_list = [l for l in links if l is not None and ".pdf" in l]
 
-        # write to disk
         df_link = pd.DataFrame({'link': link_list})
-        df_link.to_csv('datastore/raw/cr-bound/link_list.csv') 
 
-    return 'datastore/raw/cr-bound/link_list.csv'
+        if redo == 0:
+            # write to disk
+            df_link.to_csv('datastore/scrape/cr-bound/link_list.csv') 
+        elif redo == 1:
+            df_link_old = pd.read_csv('datastore/scrape/cr-bound/link_list.csv')
+            # merge
+            df_link = pd.merge(df_link,df_link_old,on='link',how='outer')
+            # replace column 'download' with 0 when missing
+            df_link = df_link.fillna(0)
+            # write to disk
+            df_link.to_csv('datastore/scrape/cr-bound/link_list.csv') 
+
+
+    return 'datastore/scrape/cr-bound/link_list.csv'
 
 # downloads a file via URL with progress bar
 # source:
@@ -105,10 +125,10 @@ def DownloadPDFs(link_list):
                 print(substring)
                 # get request PDF and write to disk
                 url = row['link']
-                newfile = 'datastore/raw/cr-bound/' + substring + ".pdf"
+                newfile = 'datastore/scrape/cr-bound/' + substring + ".pdf"
                 download(url, newfile)
                 df_link['downloaded'][index] = 1
-                df_link.to_csv('datastore/raw/cr-bound/link_list.csv', index = False) 
+                df_link.to_csv('datastore/scrape/cr-bound/link_list.csv', index = False) 
 
                 ## check enough memory to proceed
                 disk_usage = psutil.disk_usage('/')

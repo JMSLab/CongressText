@@ -1,0 +1,7 @@
+Import('*')
+
+
+target = ['#datastore/scrape/cr-bound/link_list.csv',
+          '#datastore/scrape/cr-bound/GPO*.pdf']
+source = ['#source/scrape/scrape_bound.py']
+env.Python(target, source)
