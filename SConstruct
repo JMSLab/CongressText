@@ -22,7 +22,6 @@ Export('env')
 
 jms.start_log('develop', '')
 
-SConscript('source/scrape/SConscript')
 SConscript('source/derived/SConscript')
 SConscript('source/analysis/SConscript')
 SConscript('source/tables/SConscript')
