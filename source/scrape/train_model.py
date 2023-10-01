@@ -14,6 +14,7 @@ from pycocotools.coco import COCO
 import layoutparser as lp
 import random
 import cv2
+import subprocess
 
 
 ### GET DATA ###
@@ -23,7 +24,8 @@ if not os.path.isfile(manifest):
 	OUTPUT_MANIFEST = (
 	     "s3://congress-text-ocr/bound-labeled/cr-bound-labeling-batch2/manifests/output/output.manifest"  # Replace with the S3 URI for your output manifest.
 	)
-	!aws s3 cp {OUTPUT_MANIFEST} 'datastore/scrape/cr-label/output.manifest.batch2'
+	cmd = f"aws s3 cp {OUTPUT_MANIFEST} 'datastore/scrape/cr-label/output.manifest.batch2'"
+    subprocess.run(cmd, shell=True, check=True)
 
 
 #### CHECK IF YOU WANT TO DOWNLOAD FILES AGAIN #####
@@ -90,8 +92,6 @@ with open(manifest, "r") as f:
 
 coco_data = sagemaker_to_coco(sagemaker_annotations)
 coco_data['info']
-
-import subprocess
 
 # Directory where you want to save the downloaded images
 SAVE_DIR = 'batch2'
