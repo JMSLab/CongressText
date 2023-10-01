@@ -1,0 +1,31 @@
+import cv2
+import layoutparser as lp
+import os
+
+model = lp.Detectron2LayoutModel(
+    config_path = "layout-model-training/outputs/fast_rcnn_R_50_FPN_3x/config.yaml",
+    model_path = "layout-model-training/outputs/fast_rcnn_R_50_FPN_3x/model_final.pth",
+    extra_config = ["MODEL.ROI_HEADS.SCORE_THRESH_TEST", 0.8] # <-- Only output high accuracy preds
+)
+
+image_dir = 'datastore/scrape/cr-label/batch2'
+output_dir = 'datastore/scrape/cr-label/test'
+
+# Iterate through each file in the directory
+for filename in os.listdir(image_dir):
+    # Check if the file has a .png extension
+    if filename.endswith('.png'):
+        # Full path to the .png file
+        file_path = os.path.join(image_dir, filename)
+        image = cv2.imread(file_path) 
+        layout = model.detect(image)
+        image_with_boxes = lp.draw_box(image, layout)
+
+        # Save the image with boxes
+        new_file = os.path.join(output_dir, filename)
+        cv2.imwrite(new_file, image_with_boxes)
+
+        
+
+
+
