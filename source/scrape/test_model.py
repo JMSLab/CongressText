@@ -1,10 +1,11 @@
 import cv2
 import layoutparser as lp
 import os
+import pdb
 
 model = lp.Detectron2LayoutModel(
-    config_path = "layout-model-training/outputs/fast_rcnn_R_50_FPN_3x/config.yaml",
-    model_path = "layout-model-training/outputs/fast_rcnn_R_50_FPN_3x/model_final.pth",
+    config_path = "layout-model-training/outputs/fast_rcnn_R_50_FPN_3x_batch2/config.yaml",
+    model_path = "layout-model-training/outputs/fast_rcnn_R_50_FPN_3x_batch2/model_final.pth",
     extra_config = ["MODEL.ROI_HEADS.SCORE_THRESH_TEST", 0.8] # <-- Only output high accuracy preds
 )
 
@@ -23,7 +24,7 @@ for filename in os.listdir(image_dir):
 
         # Save the image with boxes
         new_file = os.path.join(output_dir, filename)
-        cv2.imwrite(new_file, image_with_boxes)
+        image_with_boxes.save(new_file)
 
         
 
