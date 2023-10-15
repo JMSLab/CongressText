@@ -18,11 +18,11 @@ def select_random_pdfs(folder_path, num_pdfs=100):
 def extract_random_page(source_folder, dest_folder, filename):
     """Extracts a random page from the PDF and saves it to the destination folder."""
     with open(os.path.join(source_folder, filename), 'rb') as pdf_file:
-        reader = PyPDF2.PdfFileReader(pdf_file)
-        total_pages = reader.numPages
+        reader = PyPDF2.PdfReader(pdf_file)
+        total_pages = len(reader.pages)
         page_num = random.randint(0, total_pages-1)
-        writer = PyPDF2.PdfFileWriter()
-        writer.addPage(reader.getPage(page_num))
+        writer = PyPDF2.PdfWriter()
+        writer.add_page(reader.pages[page_num])
 
         output_filename = f"extracted_{page_num}_{filename}"
         with open(os.path.join(dest_folder, output_filename), 'wb') as output_pdf_file:
@@ -48,8 +48,7 @@ def main(source_folder, dest_folder, num_pdfs=100):
 	pdf_to_png(dest_folder)
 
 if __name__ == "__main__":
-	SOURCE_FOLDER = "../../../../../holyscratch01/jshapiro_lab/Lab/CongressText/datastore/scrape/cr-bound"
-	DEST_FOLDER = "datastore/scrape/cr-label/batch3"
-	os.makedirs(DEST_FOLDER, exist_ok=True)  # Ensuring destination directory exists
-	main(SOURCE_FOLDER, DEST_FOLDER)
-
+    SOURCE_FOLDER = "../../../../../holyscratch01/jshapiro_lab/Lab/CongressText/datastore/scrape/cr-bound"
+    DEST_FOLDER = "datastore/scrape/cr-label/batch3"
+    os.makedirs(DEST_FOLDER, exist_ok=True)  # Ensuring destination directory exists
+    main(SOURCE_FOLDER, DEST_FOLDER)
