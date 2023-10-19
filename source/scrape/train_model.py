@@ -19,12 +19,13 @@ import subprocess
 
 ### GET DATA ###
 os.chdir('datastore/scrape/cr-label')
-manifest = 'output.manifest.batch2'
+batch = 3
+manifest = 'output.manifest.batch' + str(batch)
 if not os.path.isfile(manifest):
     OUTPUT_MANIFEST = (
-	     "s3://congress-text-ocr/bound-labeled/cr-bound-labeling-batch2/manifests/output/output.manifest"  # Replace with the S3 URI for your output manifest.
+	     "s3://congress-text-ocr/bound-labeled/cr-bound-labeling-batch" + str(batch) +  "/manifests/output/output.manifest"  # Replace with the S3 URI for your output manifest.
 	)
-    cmd = f"aws s3 cp {OUTPUT_MANIFEST} 'output.manifest.batch2'"
+    cmd = f"aws s3 cp {OUTPUT_MANIFEST} 'output.manifest.batch{batch}'"
     subprocess.run(cmd, shell=True, check=True)
 
 
@@ -52,13 +53,13 @@ def sagemaker_to_coco(sagemaker_annotations):
         image_info = {
             "file_name": item["source-ref"],
             "id": image_id,
-            "width": item["cr-bound-labeling-batch2"]["image_size"][0]["width"],
-            "height": item["cr-bound-labeling-batch2"]["image_size"][0]["height"]
+            "width": item["cr-bound-labeling-batch"+str(batch)]["image_size"][0]["width"],
+            "height": item["cr-bound-labeling-batch"+str(batch)]["image_size"][0]["height"]
         }
         coco_format["images"].append(image_info)
         
         # Extracting annotations
-        for anno in item["cr-bound-labeling-batch2"]["annotations"]:
+        for anno in item["cr-bound-labeling-batch"+str(batch)]["annotations"]:
             annotation_info = {
                 "id": annotation_id,
                 "image_id": image_id,
@@ -71,7 +72,7 @@ def sagemaker_to_coco(sagemaker_annotations):
             annotation_id += 1
         
         # Updating the category_map
-        class_map = item["cr-bound-labeling-batch2-metadata"]["class-map"]
+        class_map = item["cr-bound-labeling-batch"+str(batch)+"-metadata"]["class-map"]
         for class_id, class_name in class_map.items():
             if class_name not in category_map:
                 category_map[class_name] = int(class_id)
@@ -94,7 +95,7 @@ coco_data = sagemaker_to_coco(sagemaker_annotations)
 coco_data['info']
 
 # Directory where you want to save the downloaded images
-SAVE_DIR = 'batch2'
+SAVE_DIR = 'batch'+str(batch)
 
 # Ensure the directory exists
 if not os.path.exists(SAVE_DIR):
