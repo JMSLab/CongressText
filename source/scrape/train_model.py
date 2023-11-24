@@ -158,12 +158,8 @@ if task == "from_aws":
     COCO_IMG_PATH = SAVE_DIR
 
 
-    # !python layout-model-training/utils/cocosplit.py   --split-ratio 0.85  --annotation-path coco_format.json  --train test-train/train.json --test test-train/test.json
-
-    # os.chdir('../../../layout-model-training/scripts')
-    # !bash train_cr.sh
 elif task == "from_coco":
-    old_coco_path = 'output.manual.batch' + str(batch)
+    old_coco_path = 'output.manual.batch' + str(batch) + '.json'
 
     with open(old_coco_path, "r") as f:
         annotations = json.loads(f)
@@ -186,5 +182,8 @@ elif task == "from_coco":
 
 
 
+# !python layout-model-training/utils/cocosplit.py   --split-ratio 0.85  --annotation-path coco_format.json  --train test-train/train.json --test test-train/test.json
 
+# os.chdir('../../../layout-model-training/scripts')
+# !bash train_cr.sh
 
