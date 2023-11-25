@@ -162,7 +162,7 @@ elif task == "from_coco":
     old_coco_path = 'output.manual.batch' + str(batch) + '.json'
 
     with open(old_coco_path, "r") as f:
-        annotations = json.loads(f)
+        annotations = json.load(f)
 
     # Function to update file paths
     def update_file_paths(data):
@@ -182,7 +182,7 @@ elif task == "from_coco":
 
 
 
-# !python layout-model-training/utils/cocosplit.py   --split-ratio 0.85  --annotation-path coco_format.json  --train test-train/train.json --test test-train/test.json
+# !python CongressText/source/layout-model-training/utils/cocosplit.py   --split-ratio 0.85  --annotation-path coco_format.json  --train test-train/train.json --test test-train/test.json
 
 # os.chdir('../../../layout-model-training/scripts')
 # !bash train_cr.sh
