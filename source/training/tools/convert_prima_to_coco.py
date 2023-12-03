@@ -125,7 +125,7 @@ class PRIMADataset():
         return len(self.ids)
     
     def __getitem__(self, idx):
-        return self.load_image_and_annotaiton(idx)
+        return self.load_image_and_annotation(idx)
     
     def find_all_annotation_files(self):
         return glob(os.path.join(self.anno_path, '*.xml'))
@@ -134,7 +134,7 @@ class PRIMADataset():
         replacer = lambda s: os.path.basename(s).replace('pc-', '').replace('.xml', '')
         return [replacer(s) for s in self.find_all_annotation_files()]
     
-    def load_image_and_annotaiton(self, idx):
+    def load_image_and_annotation(self, idx):
         
         image_id = self._ids[idx]
         

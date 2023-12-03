@@ -1,4 +1,4 @@
-# Modified based on https://github.com/akarazniewicz/cocosplit/blob/master/cocosplit.py
+# Modified based on https://github.com/akarazniewicz/cocosplit/blob/4c8ddccee94f43f0c88451f06ea94fb2f82e208d/cocosplit.py
 
 import json
 import argparse

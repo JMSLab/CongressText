@@ -1,5 +1,6 @@
 """
-The script is based on https://github.com/facebookresearch/detectron2/blob/master/tools/train_net.py. 
+The script is based on https://github.com/facebookresearch/detectron2/blob/5de5319a49e7ea819586d3d6a817632392dfdeb2/tools/train_net.py
+License: https://github.com/facebookresearch/detectron2/blob/5de5319a49e7ea819586d3d6a817632392dfdeb2/LICENSE
 """
 
 import logging
