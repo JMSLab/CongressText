@@ -9,8 +9,3 @@ Scans are obtained from [this website](https://govinfo.gov) by (automated) downl
 Direct links from the GPO are available between Volume 1 (43rd Congress, Special Session, 1873) and Volume 144  (105th Congress, 2nd Session, 1998). The website hosting a directory of the bound editions is [here](https://www.govinfo.gov/app/collection/crecb/145_crecb/Volume%20144%20(1998)).
 
 
-### Congressional Record, Daily Edition
-
-[Daily Edition of the Congressional Record](https://www.govinfo.gov/help/crec#about)
-
->  Govinfo currently contains Congressional Record volumes from 140 (1994) to the present. The current year's Congressional Record database is usually updated daily by 11 a.m., except when a late adjournment delays production of the issue. Documents are available in ASCII text and Adobe Portable Document Format (PDF). The date of the publication refers to the date the proceedings were recorded, not necessarily the date of delivery.
