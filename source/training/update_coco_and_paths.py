@@ -181,7 +181,6 @@ elif task == "from_coco":
         json.dump(coco_data, f)    
 
 
-
 # !python CongressText/source/layout-model-training/utils/cocosplit.py   --split-ratio 0.85  --annotation-path coco_format.json  --train test-train/train.json --test test-train/test.json
 
 # os.chdir('../../../layout-model-training/scripts')

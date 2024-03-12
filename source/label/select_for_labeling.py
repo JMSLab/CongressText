@@ -48,7 +48,7 @@ def main(source_folder, dest_folder, num_pdfs=100):
 	pdf_to_png(dest_folder)
 
 if __name__ == "__main__":
-    SOURCE_FOLDER = "../../../../../holyscratch01/jshapiro_lab/Lab/CongressText/datastore/scrape/cr-bound"
-    DEST_FOLDER = "datastore/scrape/cr-label/batch3"
+    SOURCE_FOLDER = "./datastore/scrape/cr-bound"
+    DEST_FOLDER = "./datastore/scrape/cr-label/batch3"
     os.makedirs(DEST_FOLDER, exist_ok=True)  # Ensuring destination directory exists
     main(SOURCE_FOLDER, DEST_FOLDER)
