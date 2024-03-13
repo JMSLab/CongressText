@@ -21,10 +21,19 @@ env.Command(target, source, command)
 
 # train model
 target = Glob('#output/layout-model-training/outputs/fast_rcnn_R_50_FPN_3x_batch3_manual/*') # model, sensitive to batch number
-source = ['#source/training/scripts/train_cr.sh',
+source = ['#source/training/tools/train_net.py',
           '#output/scrape/cr-label/test-train/train.json',
           '#output/scrape/cr-label/test-train/test.json']
-command = f'bash {source[0]}'          
+arguments = "--dataset_name          ocr1 \
+    --json_annotation_train ./datastore/scrape/cr-label/test-train/train.json \
+    --image_path_train      ./datastore/scrape/cr-label  \
+    --json_annotation_val   ./datastore/scrape/cr-label/test-train/test.json \
+    --image_path_val        ./datastore/scrape/cr-label  \
+    --config-file           ./source/training/configs/prima/fast_rcnn_R_50_FPN_3x.yaml \
+    --resume                \
+    OUTPUT_DIR  ./datastore/layout-model-training/outputs/fast_rcnn_R_50_FPN_3x_batch3_manual/ \
+    SOLVER.IMS_PER_BATCH 2" 
+command = f'python {source[0]} {arguments}'          
 env.Command(target, source, command)
 
 # visualize model
