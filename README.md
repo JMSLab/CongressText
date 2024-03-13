@@ -8,7 +8,7 @@ The datastore is [`CongressText`](https://drive.google.com/drive/u/1/folders/0AL
 ### Workflow summary
 This repository produces text data containing the speeches contained in the Congressional Record. To accomplish this, we use the following procedure:
 1. Scrape the Congress.gov website for PDF scans of the Congressional Record
-2. Manually label the layouts for a random sample of PDFs using LabelStudio
+2. [Manually label](./source/label/README.md) the layouts for a random sample of PDFs using LabelStudio
 3. Fine-tune a mask RCNN model to automatically detect layouts using LayoutParser
 4. Detect layouts for all PDFs using this model
 5. OCR to obtain text data for all PDFs
