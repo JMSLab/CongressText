@@ -4,13 +4,13 @@ import os
 import pdb
 
 model = lp.Detectron2LayoutModel(
-    config_path = "datastore/layout-model-training/outputs/fast_rcnn_R_50_FPN_3x_batch3_manual/config.yaml",
-    model_path = "datastore/layout-model-training/outputs/fast_rcnn_R_50_FPN_3x_batch3_manual/model_final.pth",
+    config_path = "datastore/training/outputs/fast_rcnn_R_50_FPN_3x_batch3_manual/config.yaml",
+    model_path = "datastore/training/outputs/fast_rcnn_R_50_FPN_3x_batch3_manual/model_final.pth",
     extra_config = ["MODEL.ROI_HEADS.SCORE_THRESH_TEST", 0.8] # <-- Only output high accuracy preds
 )
 
 image_dir = 'datastore/scrape/cr-label/batch3'
-output_dir = 'datastore/scrape/cr-label/test/batch3_manual'
+output_dir = 'datastore/training/cr-label/test/batch3_manual'
 
 # Iterate through each file in the directory
 for filename in os.listdir(image_dir):
