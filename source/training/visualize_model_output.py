@@ -9,7 +9,7 @@ model = lp.Detectron2LayoutModel(
     extra_config = ["MODEL.ROI_HEADS.SCORE_THRESH_TEST", 0.8] # <-- Only output high accuracy preds
 )
 
-image_dir = 'datastore/scrape/cr-label/batch3'
+image_dir = 'datastore/label/batch3'
 output_dir = 'datastore/training/cr-label/test/batch3_manual'
 
 # Iterate through each file in the directory

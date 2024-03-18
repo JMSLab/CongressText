@@ -22,7 +22,7 @@ import subprocess
 task = "from_coco"
 
 
-os.chdir('datastore/scrape/cr-label')
+os.chdir('datastore/label')
 batch = 3
 
 if task == "from_aws":
@@ -177,7 +177,7 @@ elif task == "from_coco":
     coco_data = update_file_paths(annotations)
 
     # Save the coco_data to a file
-    with open('../../training/cr_label/coco_format.json', 'w') as f:
+    with open('../training/cr_label/coco_format.json', 'w') as f:
         json.dump(coco_data, f)    
 
 

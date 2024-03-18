@@ -4,7 +4,7 @@ Import('*')
 target = ['#datastore/training/cr-label/sconscript.log',
           '#datastore/training/cr-label/coco_format.json']
 source = ['#source/training/update_coco_and_paths.py',
-          '#datastore/scrape/cr-label/output.manual.batch3.json'  # annotations data, sensitive to batch number
+          '#datastore/label/output.manual.batch3.json'  # annotations data, sensitive to batch number
           ]
 env.Python(target, source)
 
@@ -12,7 +12,7 @@ env.Python(target, source)
 annotation_path = env.File('#datastore/training/cr-label/coco_format.json').abspath
 train_path = env.File('#datastore/training/cr-label/test-train/train.json').abspath
 test_path = env.File('#datastore/training/cr-label/test-train/test.json').abspath
-testtrain_data_path = env.File('#datastore/scrape/cr-label').abspath
+testtrain_data_path = env.File('#datastore/label').abspath
 config_path = env.File('#source/training/configs/prima/fast_rcnn_R_50_FPN_3x.yaml').abspath
 model_path = env.File('#datastore/training/outputs/fast_rcnn_R_50_FPN_3x_batch3_manual/').abspath
 
@@ -22,7 +22,7 @@ target = ['#datastore/training/cr-label/test-train/sconscript.log',
           '#datastore/training/cr-label/test-train/train.json',
           '#datastore/training/cr-label/test-train/test.json']
 source = ['#source/training/utils/cocosplit.py']
-batch3_files = Glob('#datastore/scrape/cr-label/batch3/*')  # raw data, sensitive to batch number
+batch3_files = Glob('#datastore/label/batch3/*')  # raw data, sensitive to batch number
 source.extend(batch3_files)
 arguments = f'--split-ratio 0.85 --annotation-path {annotation_path} --train {train_path} --test {test_path}'
 command = f'python {source[0]} {arguments}'          
