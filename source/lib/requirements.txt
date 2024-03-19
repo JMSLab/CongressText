@@ -5,3 +5,15 @@ selenium>=4.9.0
 psutil>=5.9.4
 tqdm>=4.64.1
 pathlib>=1.0.1
+layoutparser
+funcy
+bs4
+scikit-learn
+imagesize
+label-studio-converter
+requests>=2.22.0,<3
+Pillow>=10.0.1
+nltk==3.6.7
+label-studio-tools>=0.0.3
+ujson
+ijson~=3.2.0.post0
