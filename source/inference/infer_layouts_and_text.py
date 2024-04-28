@@ -6,6 +6,7 @@ import pdb
 import re
 import numpy as np
 from pdf2image import convert_from_path
+from tqdm import tqdm
 
 
 model = lp.Detectron2LayoutModel(
@@ -23,7 +24,10 @@ ocr_agent = lp.TesseractAgent(languages='eng')
 
 
 def files_to_dprogress_df(image_dir)
-    """Take all files in dir and return a df containing relevant ones"""
+    """
+    Take all files in dir and return a df containing relevant ones
+    Also initializes dfs for sections, speeches, and speakers
+    """
     all_docs = os.listdir(image_dir)
 
     # only keep files that fit the format (avoid duplicates)
@@ -43,7 +47,24 @@ def files_to_dprogress_df(image_dir)
         "speech_id": [0] * len(sorted_docs),
         "paragraph_id": [0] * len(sorted_docs)
     })
-    return docs_df
+
+
+    sections_df = pd.DataFrame(columns = ['year','part','part_page','date',
+                                            'volume_page','section_name','section_id'])
+
+    speeches_df = pd.DataFrame(columns = ['section_id','speech_order','speaker_name',
+                                            'speaker_id','speech_id'])
+
+    speakers_df = pd.DataFrame(columns = ['speaker_id','speaker_name'])
+
+    return docs_df, sections_df, speeches_df, speakers_df
+
+
+def new_paragraph_df()
+    """Construct df for paragraph level text. One per document."""
+    paragraphs_df = pd.DataFrame(columns = ['speech_id','paragraph_text',
+                                            'paragraph_order','paragraph_id'])
+    return paragraphs_df
 
 
 def pdf_to_cv2_images(pdf_path):
@@ -53,6 +74,25 @@ def pdf_to_cv2_images(pdf_path):
     cv2_images = [cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR) for image in pil_images]
     return cv2_images
 
+def doc_to_yearpart(filepath)
+    """Get year and part number from filename  """
+    year = 0
+    match = re.search(r'\d{4}', filepath)
+    if match:
+        year = match.group()
+    else:
+        print("No four-digit sequence found.") 
+
+
+    part = 0
+    match = re.search(r'pt(\d+)_', filename)
+    if match:
+        return match.group(1)
+    else:
+        print("No part found found.") 
+
+    return year, part
+
 
 
 
@@ -60,20 +100,24 @@ def pdf_to_cv2_images(pdf_path):
 docsdf_path = inference_dir + "/docs.csv"
 sectionsdf_path = inference_dir + "/sections.csv"
 speechesdf_path = inference_dir + "/speeches.csv"
+speakersdf_path = inference_dir + "/speakers.csv"
 
 if os.path.isfile(docsdf_path):
     docs_df = pd.read_csv(docsdf_path)
     sections_df = pd.read_csv(sectionsdf_path)
     speeches_df = pd.read_csv(speechesdf_path)
+    speakers_df = pd.read_csv(speakersdf_path)
 
 # construct CSV for progress
 else:
-    docs_df = files_to_dprogress_df(image_dir)
+    docs_df, sections_df, speeches_df, speakers_df = files_to_dprogress_df(image_dir)
     docs_df.to_csv(docsdf_path, index=False)
+    sections_df.to_csv(sectionsdf_path, index=False)
+    speeches_df.to_csv(speechesdf_path, index=False)
+    speakers_df.to_csv(speakersdf_path, index=False)
 
-    ## TODO: instatiate sections_df, speeches_df
     ## TODO: handle speeches_text at the doc level (file size mgmt)
-
+    ## TODO: disambiguate speakers
 
 
 
@@ -89,9 +133,15 @@ for index, row in docs_df.iterrows():
         all_images = pdf_to_cv2_images(file_path)
         print("  All pages loaded to PNG")
 
-        ## TODO: tqdm per page
+        # set up for new document
+        paragraphs_df = new_paragraph_df()
+        section_id = row['section_id'] 
+        speech_id = row['speech_id'] 
+        paragraph_id = row['paragraph_id'] 
 
-        for image in all_images:
+        year, part = doc_to_yearpart(file_path)
+
+        for page_id, image in enumerate(tqdm(all_images)):
 
             # Full path to the .png file
             
@@ -105,7 +155,6 @@ for index, row in docs_df.iterrows():
             # 3 is speaker
             # 4 is speech
 
-            # TODO: blank json SET UP
 
             ## if any skip, skip
             if not any(item.type == 2 for item in layout):
@@ -113,6 +162,7 @@ for index, row in docs_df.iterrows():
 
                 ## handle titles
                 titles = lp.Layout([b for b in layout if b.type==0])  
+                titles.sort(key = lambda b:b.coordinates[1], inplace=True)
                 ## section headings
                 sections = lp.Layout([b for b in layout if b.type==1])  
                 ## speech
@@ -120,87 +170,123 @@ for index, row in docs_df.iterrows():
                 ## speakers
                 speakers = lp.Layout([b for b in layout if b.type==3]) 
 
-                # columns depends on year
-                # after (inclusive) 1941 volume 87 77th Congress, 3 columns
-                # before, 2 columns
-                year = 0
-                match = re.search(r'\d{4}', filepath)
-                if match:
-                    year = match.group()
-                else:
-                    print("No four-digit sequence found.") 
-
+                # init blocks
                 title_blocks = []
                 section_blocks = []
                 speech_blocks = []
                 speaker_blocks = []
 
+                # get page data from first title
+                part_page = page_id + 1
+                ### TODO: extract this correctly; 
+                ### format changes over time (need to alternate page numbers for date/year earlier)
+                ### maybe exclude middle section
+                date = titles[1]
+
+
                 ### TODO: split into functions for testing
 
-                ### TODO: rare exceptions (multiple titles, halfway down page, need to split?)
+                
 
-                ### TODO: initialize block information
 
                 ## split vertically by title block
-                for title in titles: 
+                for title_id, title in enumerate(titles): 
 
-                    # check if last
+                    ### cleaning at title level
 
-                    # if not, set lower bound for y at next title y
+                    # get relevant blocks within the title
+                    upper_y = height
+                    # if not last title, set upper bound for y at next title y
+                    if title != titles[-1]:
+                        # 5 px grace
+                        upper_y = titles[title_id + 1].coordinates[1] + 5
 
-                    ## code for 3 columns
+                    # first, keep everything below upper bound
+                    section_Tblocks = [b for b in section_blocks if b.coordinates[1] <= upper_y]
+                    speech_Tblocks = [b for b in speech_blocks if b.coordinates[1] <= upper_y]
+                    speaker_Tblocks = [b for b in speaker_blocks if b.coordinates[1] <= upper_y]
+
+                    # remove from original list
+                    section_blocks = [b for b in section_blocks if b.coordinates[1] > upper_y]
+                    speech_blocks = [b for b in speech_blocks if b.coordinates[1] > upper_y]
+                    speaker_blocks = [b for b in speaker_blocks if b.coordinates[1] > upper_y]
+
+                    # combine all blocks    
+                    all_Tblocks = section_Tblocks + speech_Tblocks + speaker_Tblocks
+
+
+                    ### order blocks by column and position on page
+                    # columns depends on year
+                    # after (inclusive) 1941 volume 87 77th Congress, 3 columns
+                    # before, 2 columns
+                    
+                    # code for 3 columns
                     if year >= 1941:
 
-                    ## code for 2 columns
+                        # TODO: test where on page the column splits are
+                        ## maybe also use actual block data to inform (if sufficient # of blocks)
+
+                    # code for 2 columns
                     else: 
-
-                        # first, keep everything above lower bound
-                        # remove from original list
-
-
 
                         # split alongside middle
                         left_interval = lp.Interval(0, width/2*1.05, axis='x').put_on_canvas(image)
 
-                        # TODO: need to also combine in sections/speeches/speakers
-                        left_blocks = text_blocks.filter_by(left_interval, center=True)
+                        left_blocks = all_Tblocks.filter_by(left_interval, center=True)
                         left_blocks.sort(key = lambda b:b.coordinates[1], inplace=True)
                         # The b.coordinates[1] corresponds to the y coordinate of the region
                         # sort based on that can simulate the top-to-bottom reading order 
-                        right_blocks = lp.Layout([b for b in text_blocks if b not in left_blocks])
+                        right_blocks = lp.Layout([b for b in all_Tblocks if b not in left_blocks])
                         right_blocks.sort(key = lambda b:b.coordinates[1], inplace=True)
 
 
                         # And finally combine the two lists and add the index
-                        text_blocks = lp.Layout([b.set(id = idx) for idx, b in enumerate(left_blocks + right_blocks)])                
+                        all_Tblocks = lp.Layout([b.set(id = idx) for idx, b in enumerate(left_blocks + right_blocks)])                
 
-                        ## speakers
-                        # check for largest intersection
-                        # apply until next section or speaker
 
+                    ### extract info from blocks
 
                     for block in text_blocks:
 
-                        # TODO: remove speaker if text_block
-                        ### check LP documentation
+                        if block in section_Tblocks:
+                            # TODO: fill
 
-                        segment_image = (block
+                            'year','part','part_page','date',
+                                            'volume_page','section_name','section_id'
+
+                            # crop w/ padding in each segment for robustness
+                            segment_image = (block
                                            .pad(left=5, right=5, top=5, bottom=5)
                                            .crop_image(image))
-                            # add padding in each image segment can help
-                            # improve robustness 
-                            
-                        text = ocr_agent.detect(segment_image)
-                        block.set(text=text, inplace=True)
+                            # standard ocr extraction
+                            section_name = ocr_agent.detect(segment_image)
+                            ### TODO: add components to dict 
+                            section_dict = {}
+
+                            sections_df = sections_df._append(section_dict, ignore_index = True)
+
+                        elif block in speech_Tblocks:
+                            # TODO: fill
+
+                        elif block in speaker_Tblocks:
+                            # TODO: remove speaker if text_block
+
+                            ## speakers
+                            # check for largest intersection
+                            # apply until next section or speaker
+
+                            ### check LP documentation
+
+                        else 
+                            print("Block not categorized")
 
 
                 # extract to JSON
 
-                # TODO: for later, sections infer from column # and y-pos
-
 
             ## code for skip
             else:
+                print("SKIP page")
                 
 
 
@@ -214,9 +300,23 @@ for index, row in docs_df.iterrows():
         # update progress doc
         ### TODO: savedata
         docs_df.loc[index, 'complete'] = 1
-        ## TODO: record max section_id, speech_id, paragraph_id for next row
+
+        ## record max section_id, speech_id, paragraph_id for next row
+        docs_df.loc[index+1, 'section_id'] = section_id
+        docs_df.loc[index+1, 'speech_id'] = speech_id
+        docs_df.loc[index+1, 'paragraph_id'] = paragraph_id
+
 
         docs_df.to_csv(dprogress_path, index=False)        
+        sections_df.to_csv(sectionsdf_path, index=False)
+        speeches_df.to_csv(speechesdf_path, index=False)
+        speakers_df.to_csv(speakersdf_path, index=False)
+
+        para_path = str(year)+'_pt'+str(part)+'_paragraph.csv'
+        file_path = os.path.join(image_dir, para_path)
+        ### TODO: check that para_path is correct directory for this stuff
+        ### TODO: write paragraphs
+
 
         
 
