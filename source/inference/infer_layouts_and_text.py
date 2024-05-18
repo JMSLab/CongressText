@@ -131,7 +131,7 @@ for index, row in docs_df.iterrows():
 
         # convert PDF pages to PNG
         all_images = pdf_to_cv2_images(file_path)
-        print("  All pages loaded to PNG")
+        print("--- All pages loaded to PNG")
 
         # set up for new document
         paragraphs_df = new_paragraph_df()
@@ -140,6 +140,8 @@ for index, row in docs_df.iterrows():
         paragraph_id = row['paragraph_id'] 
 
         year, part = doc_to_yearpart(file_path)
+
+        speaker_id = 0    # default is null
 
         for page_id, image in enumerate(tqdm(all_images)):
 
@@ -243,14 +245,52 @@ for index, row in docs_df.iterrows():
                         # And finally combine the two lists and add the index
                         all_Tblocks = lp.Layout([b.set(id = idx) for idx, b in enumerate(left_blocks + right_blocks)])                
 
+                    
+                    ### order blocks correctly
+                    # primary concern: handling speakers that appear after speeches they are associated with
+                    ordered_blocks = []
+                    inserted_speakers = set()
+
+                    for block in all_Tblocks:
+                        # always insert section blocks when encountered
+                        if block in section_Tblocks:
+                            ordered_blocks.append(block)
+                        # for speeches, look ahead for speaker blocks with a high intersection
+                        elif block in speech_Tblocks:
+                            best_speaker = None
+                            max_intersection_area = 0
+                            
+                            for speaker_block in speaker_Tblocks:
+                                if speaker_block not in inserted_speakers:
+                                    intersection = block.intersect(speaker_block)
+                                    intersection_area = intersection.area()
+                                    
+                                    # check for large intersection (and max of all seen)
+                                    if intersection_area > 0.7 * speaker_block.area() and intersection_area > max_intersection_area:
+                                        best_speaker = speaker_block
+                                        max_intersection_area = intersection_area
+
+                            # insert speaker before the speech block
+                            if best_speaker:
+                                ordered_blocks.append(best_speaker)
+                                inserted_speakers.add(best_speaker)  # Mark this speaker as inserted
+
+                            # insert the speech block
+                            ordered_blocks.append(block)
+
+                        # handle speaker blocks only if they haven't been inserted yet
+                        elif block in speaker_Tblocks:
+                            if block not in inserted_speakers:
+                                ordered_blocks.append(block)
+                                inserted_speakers.add(block)
+
 
                     ### extract info from blocks
+                    for block in ordered_blocks:
 
-                    for block in text_blocks:
-
+                        # get data for sections
+                        ### TODO: update date/volume_page! see above
                         if block in section_Tblocks:
-                            # TODO: fill
-
                             'year','part','part_page','date',
                                             'volume_page','section_name','section_id'
 
@@ -260,13 +300,32 @@ for index, row in docs_df.iterrows():
                                            .crop_image(image))
                             # standard ocr extraction
                             section_name = ocr_agent.detect(segment_image)
-                            ### TODO: add components to dict 
-                            section_dict = {}
 
-                            sections_df = sections_df._append(section_dict, ignore_index = True)
+                            new_row = {'year': year, 'part': part, 'part_page': part_page, 
+                                'date': date, 'volume_page': "", 'section_name': section_name,
+                                'section_id': }
+                            sections_df = sections_df.append(new_row, ignore_index=True)
+
+                            section_id += 1
+                            speaker_id = 0    # reset speaker ID to null
 
                         elif block in speech_Tblocks:
                             # TODO: fill
+
+                            # crop w/ padding in each segment for robustness
+                            segment_image = (block
+                                           .pad(left=5, right=5, top=5, bottom=5)
+                                           .crop_image(image))
+                            # standard ocr extraction
+                            paragraph_text = ocr_agent.detect(segment_image)
+
+
+                            paragraphs_df = pd.DataFrame(columns = ['speech_id': speech_id,'paragraph_text': paragraph_text,
+                                            'paragraph_order': paragraph_order,'paragraph_id': paragraph_id])
+
+                            paragraph_id += 1
+                            paragraph_order += 1
+
 
                         elif block in speaker_Tblocks:
                             # TODO: remove speaker if text_block
@@ -276,6 +335,16 @@ for index, row in docs_df.iterrows():
                             # apply until next section or speaker
 
                             ### check LP documentation
+
+                            speakers_df = pd.DataFrame(columns = ['speaker_id','speaker_name'])
+
+                            new_row = {'section_id': a,'speech_order': ,'speaker_name': ,
+                                            'speaker_id': speaker_id,'speech_id': speech_id}
+
+                            speeches_df = speeches_df.append(new_row, ignore_index=True)
+
+                            speech_id += 1
+                            paragraph_order = 1
 
                         else 
                             print("Block not categorized")
