@@ -18,3 +18,4 @@ label-studio-tools>=0.0.3
 ujson
 ijson~=3.2.0.post0
 layoutparser[ocr]
+tesseract

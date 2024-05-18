@@ -196,6 +196,9 @@ for index, row in docs_df.iterrows():
                 # pdb.set_trace()
                 height, width = image.shape[:2]
 
+                ## set IDs
+                layout = lp.Layout([b.set(id=idx) for idx, b in enumerate(layout)])
+
                 ## handle titles
                 titles = lp.Layout([b for b in layout if b.type==0])  
                 titles.sort(key = lambda b:b.coordinates[1], inplace=True)
@@ -206,12 +209,7 @@ for index, row in docs_df.iterrows():
                 ## speakers
                 speakers = lp.Layout([b for b in layout if b.type==3]) 
 
-                # init blocks
-                title_blocks = []
-                section_blocks = []
-                speech_blocks = []
-                speaker_blocks = []
-
+                
                 # get page data from first title
                 part_page = page_id + 1
                 ### TODO: extract this correctly; 
@@ -238,18 +236,18 @@ for index, row in docs_df.iterrows():
                         upper_y = titles[title_id + 1].coordinates[1] + 5
 
                     # first, keep everything below upper bound
-                    section_Tblocks = [b for b in section_blocks if b.coordinates[1] <= upper_y]
-                    speech_Tblocks = [b for b in speech_blocks if b.coordinates[1] <= upper_y]
-                    speaker_Tblocks = [b for b in speaker_blocks if b.coordinates[1] <= upper_y]
+                    section_Tblocks = [b for b in sections if b.coordinates[1] <= upper_y]
+                    speech_Tblocks = [b for b in speeches if b.coordinates[1] <= upper_y]
+                    speaker_Tblocks = [b for b in speakers if b.coordinates[1] <= upper_y]
 
                     # remove from original list
-                    section_blocks = [b for b in section_blocks if b.coordinates[1] > upper_y]
-                    speech_blocks = [b for b in speech_blocks if b.coordinates[1] > upper_y]
-                    speaker_blocks = [b for b in speaker_blocks if b.coordinates[1] > upper_y]
+                    sections = [b for b in sections if b.coordinates[1] > upper_y]
+                    speeches = [b for b in speeches if b.coordinates[1] > upper_y]
+                    speakers = [b for b in speakers if b.coordinates[1] > upper_y]
 
                     # combine all blocks    
                     all_Tblocks = lp.Layout(section_Tblocks + speech_Tblocks + speaker_Tblocks)
-
+                    pdb.set_trace()
 
                     ### order blocks by column and position on page
                     # columns depends on year
@@ -278,12 +276,14 @@ for index, row in docs_df.iterrows():
 
 
                         # And finally combine the two lists and add the index
-                        all_Tblocks = lp.Layout([b.set(id = idx) for idx, b in enumerate(left_blocks + right_blocks)])                
+                        # all_Tblocks = lp.Layout([b.set(id = idx) for idx, b in enumerate(left_blocks + right_blocks)])
+                        all_Tblocks = left_blocks + right_blocks
 
                     
                     ### order blocks correctly
                     # primary concern: handling speakers that appear after speeches they are associated with
                     ordered_blocks = []
+                    # set of IDs
                     inserted_speakers = set()
 
                     for block in all_Tblocks:
@@ -296,28 +296,28 @@ for index, row in docs_df.iterrows():
                             max_intersection_area = 0
                             
                             for speaker_block in speaker_Tblocks:
-                                if speaker_block not in inserted_speakers:
+                                if speaker_block.id not in inserted_speakers:
                                     intersection = block.intersect(speaker_block)
-                                    intersection_area = intersection.area()
+                                    intersection_area = intersection.area
                                     
                                     # check for large intersection (and max of all seen)
-                                    if intersection_area > 0.7 * speaker_block.area() and intersection_area > max_intersection_area:
+                                    if intersection_area > 0.7 * speaker_block.area and intersection_area > max_intersection_area:
                                         best_speaker = speaker_block
                                         max_intersection_area = intersection_area
 
                             # insert speaker before the speech block
                             if best_speaker:
                                 ordered_blocks.append(best_speaker)
-                                inserted_speakers.add(best_speaker)  # Mark this speaker as inserted
+                                inserted_speakers.add(best_speaker.id)  # Mark this speaker as inserted
 
                             # insert the speech block
                             ordered_blocks.append(block)
 
                         # handle speaker blocks only if they haven't been inserted yet
                         elif block in speaker_Tblocks:
-                            if block not in inserted_speakers:
+                            if block.id not in inserted_speakers:
                                 ordered_blocks.append(block)
-                                inserted_speakers.add(block)
+                                inserted_speakers.add(block.id)
 
 
                     ### extract info from blocks
