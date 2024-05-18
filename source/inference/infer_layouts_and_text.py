@@ -45,7 +45,7 @@ def files_to_dprogress_df(image_dir):
         match = re.match(pattern, doc)
         if match:
             year, part, version = match.groups()
-            version_number = int(version.replace('-v', '')) if version else 0
+            version_number = int(version.replace('-v', '')) if version else 100
             extracted_docs.append((doc, int(year), int(part), version_number))
 
     # sort by year, part, and version number
@@ -58,14 +58,14 @@ def files_to_dprogress_df(image_dir):
     for doc, year, part, version_number in extracted_docs:
         key = (year, part)
         # if a new entry or a higher version number
-        if key not in final_docs or final_docs[key][3] < version_number:
+        if key not in final_docs or final_docs[key][3] > version_number:
             final_docs[key] = (doc, year, part, version_number)
 
     sorted_docs = [info[0] for info in final_docs.values()]
 
     # create df
     docs_df = pd.DataFrame({
-        "title": [doc[0] for doc in sorted_docs],
+        "title": [doc for doc in sorted_docs],
         "complete": [0] * len(sorted_docs),
         "section_id": [0] * len(sorted_docs),
         "speech_id": [0] * len(sorted_docs),
@@ -103,7 +103,7 @@ def doc_to_yearpart(filename):
     year = 0
     match = re.search(r'\d{4}', filename)
     if match:
-        year = match.group()
+        year = int(match.group())
     else:
         print("No four-digit sequence found.") 
 
@@ -111,7 +111,7 @@ def doc_to_yearpart(filename):
     part = 0
     match = re.search(r'pt(\d+)', filename)
     if match:
-        return match.group(1)
+        part = int(match.group(1))
     else:
         print("No part found found.") 
 
@@ -162,6 +162,7 @@ for index, row in docs_df.iterrows():
         
         file_path = os.path.join(image_dir, row['title'])
         print(file_path)
+        year, part = doc_to_yearpart(row['title'])
 
         # convert PDF pages to PNG
         all_images = pdf_to_cv2_images(file_path)
@@ -177,13 +178,9 @@ for index, row in docs_df.iterrows():
         paragraph_id = row['paragraph_id'] 
         speaker_id = 0    # default is null
 
-        year, part = doc_to_yearpart(row['title'])
 
         for page_id, image in enumerate(tqdm(all_images)):
-
-            # Full path to the .png file
-            
-            image = cv2.imread(file_path) 
+ 
             layout = model.detect(image)
             
             # type guide:
@@ -195,7 +192,8 @@ for index, row in docs_df.iterrows():
 
 
             ## if any skip, skip
-            if not any(item.type == 2 for item in layout):
+            if len(layout) > 0 and not any(item.type == 2 for item in layout):
+                # pdb.set_trace()
                 height, width = image.shape[:2]
 
                 ## handle titles
@@ -219,7 +217,7 @@ for index, row in docs_df.iterrows():
                 ### TODO: extract this correctly; 
                 ### format changes over time (need to alternate page numbers for date/year earlier)
                 ### maybe exclude middle section
-                date = titles[1]
+                date = titles[0] if titles else ""
 
 
                 ### TODO: split into functions for testing
@@ -228,14 +226,14 @@ for index, row in docs_df.iterrows():
 
 
                 ## split vertically by title block
-                for title_id, title in enumerate(titles): 
+                for title_id, title in enumerate(titles if titles else [""]): 
 
                     ### cleaning at title level
 
                     # get relevant blocks within the title
                     upper_y = height
                     # if not last title, set upper bound for y at next title y
-                    if title != titles[-1]:
+                    if len(titles) > 0 and title != titles[-1]:
                         # 5 px grace
                         upper_y = titles[title_id + 1].coordinates[1] + 5
 
@@ -250,7 +248,7 @@ for index, row in docs_df.iterrows():
                     speaker_blocks = [b for b in speaker_blocks if b.coordinates[1] > upper_y]
 
                     # combine all blocks    
-                    all_Tblocks = section_Tblocks + speech_Tblocks + speaker_Tblocks
+                    all_Tblocks = lp.Layout(section_Tblocks + speech_Tblocks + speaker_Tblocks)
 
 
                     ### order blocks by column and position on page
@@ -415,7 +413,7 @@ for index, row in docs_df.iterrows():
         docs_df.loc[index+1, 'paragraph_id'] = paragraph_id
 
         # save data
-        SaveData(docs_df,['title'],dprogress_path,dprogress_log)
+        SaveData(docs_df,['title'],docsdf_path,docsdf_log)
         SaveData(sections_df,['section_id'],sectionsdf_path,sectionsdf_log)
         SaveData(speeches_df,['speech_id'],speechesdf_path,speechesdf_log)
         SaveData(speakers_df,['speaker_id'],speakersdf_path,speakersdf_log)
