@@ -8,6 +8,12 @@ import numpy as np
 from pdf2image import convert_from_path
 from tqdm import tqdm
 
+# SaveData
+import sys
+sys.path.append('source/lib')
+from SaveData import SaveData
+
+
 
 model = lp.Detectron2LayoutModel(
     config_path = "datastore/training/outputs/fast_rcnn_R_50_FPN_3x_batch3_manual/config.yaml",
@@ -16,7 +22,7 @@ model = lp.Detectron2LayoutModel(
 )
 
 image_dir = 'datastore/scrape/cr-bound'
-output_dir = 'datastore/inference/cr-bound/layouts'
+output_dir = 'output/inference'
 inference_dir = 'datastore/inference'
 
 ocr_agent = lp.TesseractAgent(languages='eng') 
@@ -41,7 +47,7 @@ def files_to_dprogress_df(image_dir)
 
     # create df
     docs_df = pd.DataFrame({
-        "titles": [doc[0] for doc in sorted_docs],
+        "title": [doc[0] for doc in sorted_docs],
         "complete": [0] * len(sorted_docs),
         "section_id": [0] * len(sorted_docs),
         "speech_id": [0] * len(sorted_docs),
@@ -101,14 +107,24 @@ docsdf_path = inference_dir + "/docs.csv"
 sectionsdf_path = inference_dir + "/sections.csv"
 speechesdf_path = inference_dir + "/speeches.csv"
 speakersdf_path = inference_dir + "/speakers.csv"
+docsdf_log = output_dir + "/docs.log"
+sectionsdf_log = output_dir + "/sections.log"
+speechesdf_log = output_dir + "/speeches.log"
+speakersdf_log = output_dir + "/speakers.log"
 
+
+docs_df = None
+sections_df = None
+speeches_df = None
+speakers_df = None
+
+# if exists, load data
 if os.path.isfile(docsdf_path):
     docs_df = pd.read_csv(docsdf_path)
     sections_df = pd.read_csv(sectionsdf_path)
     speeches_df = pd.read_csv(speechesdf_path)
     speakers_df = pd.read_csv(speakersdf_path)
-
-# construct CSV for progress
+# else, construct CSV for progress
 else:
     docs_df, sections_df, speeches_df, speakers_df = files_to_dprogress_df(image_dir)
     docs_df.to_csv(docsdf_path, index=False)
@@ -120,13 +136,13 @@ else:
     ## TODO: disambiguate speakers
 
 
-
+speaker_vals = speakers_df['speaker_name'].values
 
 # iterate through incomplete files
 for index, row in docs_df.iterrows():
     if row['complete'] == 0:
         
-        file_path = os.path.join(image_dir, row['titles'])
+        file_path = os.path.join(image_dir, row['title'])
         print(file_path)
 
         # convert PDF pages to PNG
@@ -135,13 +151,15 @@ for index, row in docs_df.iterrows():
 
         # set up for new document
         paragraphs_df = new_paragraph_df()
+        paragraphsdf_path = image_dir + f"/paragraphs_{year}_pt{part}.csv"
+        paragraphsdf_log = output_dir + f"/paragraphs_{year}_pt{part}.log"
+
         section_id = row['section_id'] 
         speech_id = row['speech_id'] 
         paragraph_id = row['paragraph_id'] 
+        speaker_id = 0    # default is null
 
         year, part = doc_to_yearpart(file_path)
-
-        speaker_id = 0    # default is null
 
         for page_id, image in enumerate(tqdm(all_images)):
 
@@ -291,8 +309,6 @@ for index, row in docs_df.iterrows():
                         # get data for sections
                         ### TODO: update date/volume_page! see above
                         if block in section_Tblocks:
-                            'year','part','part_page','date',
-                                            'volume_page','section_name','section_id'
 
                             # crop w/ padding in each segment for robustness
                             segment_image = (block
@@ -308,9 +324,9 @@ for index, row in docs_df.iterrows():
 
                             section_id += 1
                             speaker_id = 0    # reset speaker ID to null
+                            speech_order = 1  # always first speech afterwards
 
                         elif block in speech_Tblocks:
-                            # TODO: fill
 
                             # crop w/ padding in each segment for robustness
                             segment_image = (block
@@ -320,37 +336,49 @@ for index, row in docs_df.iterrows():
                             paragraph_text = ocr_agent.detect(segment_image)
 
 
-                            paragraphs_df = pd.DataFrame(columns = ['speech_id': speech_id,'paragraph_text': paragraph_text,
-                                            'paragraph_order': paragraph_order,'paragraph_id': paragraph_id])
+                            new_row = {'speech_id': speech_id,'paragraph_text': paragraph_text,
+                                            'paragraph_order': paragraph_order,'paragraph_id': paragraph_id}
+                            paragraphs_df = paragraphs_df.append(new_row, ignore_index=True)
 
                             paragraph_id += 1
                             paragraph_order += 1
 
 
                         elif block in speaker_Tblocks:
-                            # TODO: remove speaker if text_block
 
-                            ## speakers
-                            # check for largest intersection
-                            # apply until next section or speaker
+                            # crop w/ padding in each segment for robustness
+                            segment_image = (block
+                                           .pad(left=5, right=5, top=5, bottom=5)
+                                           .crop_image(image))
+                            # standard ocr extraction
+                            speaker_name = ocr_agent.detect(segment_image)
 
-                            ### check LP documentation
+                            # get speaker_id, or update df if none
+                            if speaker_name in speaker_vals:
+                                speaker_id = speakers_df[speakers_df['speaker_name'] == speaker_name]['speaker_id'].iloc[0]
+                            else:
+                                speaker_id = max(speaker_id,len(speaker_vals)) + 1
 
-                            speakers_df = pd.DataFrame(columns = ['speaker_id','speaker_name'])
+                                new_row = {'speaker_id': speaker_id, 'speaker_name': speaker_name}
+                                speakers_df = speakers_df.append(new_row, ignore_index=True) 
 
-                            new_row = {'section_id': a,'speech_order': ,'speaker_name': ,
+                                speaker_vals = speakers_df['speaker_name'].values
+
+
+                            # add new speech data
+                            new_row = {'section_id': section_id,'speech_order': speech_order,'speaker_name': speaker_name,
                                             'speaker_id': speaker_id,'speech_id': speech_id}
-
                             speeches_df = speeches_df.append(new_row, ignore_index=True)
 
                             speech_id += 1
+                            speech_order += 1
                             paragraph_order = 1
 
                         else 
                             print("Block not categorized")
 
 
-                # extract to JSON
+                # extract to JSON?
 
 
             ## code for skip
@@ -359,15 +387,7 @@ for index, row in docs_df.iterrows():
                 
 
 
-
-            image_with_boxes = lp.draw_box(image, layout)
-
-            # Save the image with boxes
-            new_file = os.path.join(output_dir, filename)
-            image_with_boxes.save(new_file)
-
         # update progress doc
-        ### TODO: savedata
         docs_df.loc[index, 'complete'] = 1
 
         ## record max section_id, speech_id, paragraph_id for next row
@@ -375,16 +395,20 @@ for index, row in docs_df.iterrows():
         docs_df.loc[index+1, 'speech_id'] = speech_id
         docs_df.loc[index+1, 'paragraph_id'] = paragraph_id
 
+        # save data
+        SaveData(docs_df,['title'],dprogress_path,dprogress_log)
+        SaveData(sections_df,['section_id'],sectionsdf_path,sectionsdf_log)
+        SaveData(speeches_df,['speech_id'],speechesdf_path,speechesdf_log)
+        SaveData(speakers_df,['speaker_id'],speakersdf_path,speakersdf_log)
+        SaveData(paragraphs_df,['paragraph_id'],paragraphsdf_path,paragraphsdf_log)
+        # docs_df.to_csv(dprogress_path, index=False)        
+        # sections_df.to_csv(sectionsdf_path, index=False)
+        # speeches_df.to_csv(speechesdf_path, index=False)
+        # speakers_df.to_csv(speakersdf_path, index=False)
+        # paragraphs_df.to_csv(paragraphsdf_path, index=False)
 
-        docs_df.to_csv(dprogress_path, index=False)        
-        sections_df.to_csv(sectionsdf_path, index=False)
-        speeches_df.to_csv(speechesdf_path, index=False)
-        speakers_df.to_csv(speakersdf_path, index=False)
-
-        para_path = str(year)+'_pt'+str(part)+'_paragraph.csv'
-        file_path = os.path.join(image_dir, para_path)
-        ### TODO: check that para_path is correct directory for this stuff
-        ### TODO: write paragraphs
+        # para_path = str(year)+'_pt'+str(part)+'_paragraph.csv'
+        # file_path = os.path.join(image_dir, para_path)
 
 
         
