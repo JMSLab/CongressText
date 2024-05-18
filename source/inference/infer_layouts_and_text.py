@@ -37,13 +37,31 @@ def files_to_dprogress_df(image_dir):
     all_docs = os.listdir(image_dir)
 
     # only keep files that fit the format (avoid duplicates)
-    pattern = r"GPO-CRECB-\d{4}-pt\d{1,2}\.pdf"
-    all_docs = [doc for doc in all_docs if re.match(pattern, doc)]
+    # get optional version number
+    pattern = r"GPO-CRECB-(\d{4})-pt(\d{1,2})(-v\d+)?\.pdf"
 
-    # extract year and part number (sort chronologically)
-    year_part_extracted = [(doc, int(doc.split('-')[2]), int(doc.split('-')[3].replace('pt', '').replace('.pdf', ''))) for doc in all_docs]
-    # sort
-    sorted_docs = sorted(year_part_extracted, key=lambda x: (x[1], x[2]))
+    extracted_docs = []
+    for doc in all_docs:
+        match = re.match(pattern, doc)
+        if match:
+            year, part, version = match.groups()
+            version_number = int(version.replace('-v', '')) if version else 0
+            extracted_docs.append((doc, int(year), int(part), version_number))
+
+    # sort by year, part, and version number
+    extracted_docs.sort(key=lambda x: (x[1], x[2], -x[3]))
+
+    # get final set of docs, unique ID is year + part
+    # first take no version number
+    # otherwise, take largest version number 
+    final_docs = {}
+    for doc, year, part, version_number in extracted_docs:
+        key = (year, part)
+        # if a new entry or a higher version number
+        if key not in final_docs or final_docs[key][3] < version_number:
+            final_docs[key] = (doc, year, part, version_number)
+
+    sorted_docs = [info[0] for info in final_docs.values()]
 
     # create df
     docs_df = pd.DataFrame({
@@ -80,10 +98,10 @@ def pdf_to_cv2_images(pdf_path):
     cv2_images = [cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR) for image in pil_images]
     return cv2_images
 
-def doc_to_yearpart(filepath):
+def doc_to_yearpart(filename):
     """Get year and part number from filename  """
     year = 0
-    match = re.search(r'\d{4}', filepath)
+    match = re.search(r'\d{4}', filename)
     if match:
         year = match.group()
     else:
@@ -91,7 +109,7 @@ def doc_to_yearpart(filepath):
 
 
     part = 0
-    match = re.search(r'pt(\d+)_', filename)
+    match = re.search(r'pt(\d+)', filename)
     if match:
         return match.group(1)
     else:
@@ -159,7 +177,7 @@ for index, row in docs_df.iterrows():
         paragraph_id = row['paragraph_id'] 
         speaker_id = 0    # default is null
 
-        year, part = doc_to_yearpart(file_path)
+        year, part = doc_to_yearpart(row['title'])
 
         for page_id, image in enumerate(tqdm(all_images)):
 
