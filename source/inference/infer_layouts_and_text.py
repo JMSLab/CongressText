@@ -29,7 +29,7 @@ ocr_agent = lp.TesseractAgent(languages='eng')
 
 
 
-def files_to_dprogress_df(image_dir)
+def files_to_dprogress_df(image_dir):
     """
     Take all files in dir and return a df containing relevant ones
     Also initializes dfs for sections, speeches, and speakers
@@ -41,7 +41,7 @@ def files_to_dprogress_df(image_dir)
     all_docs = [doc for doc in all_docs if re.match(pattern, doc)]
 
     # extract year and part number (sort chronologically)
-    year_part_extracted = [(doc, int(doc.split('-')[2]), int(doc.split('-')[3].replace('pt', '').replace('.pdf', ''))) for doc in filtered_docs]
+    year_part_extracted = [(doc, int(doc.split('-')[2]), int(doc.split('-')[3].replace('pt', '').replace('.pdf', ''))) for doc in all_docs]
     # sort
     sorted_docs = sorted(year_part_extracted, key=lambda x: (x[1], x[2]))
 
@@ -66,7 +66,7 @@ def files_to_dprogress_df(image_dir)
     return docs_df, sections_df, speeches_df, speakers_df
 
 
-def new_paragraph_df()
+def new_paragraph_df():
     """Construct df for paragraph level text. One per document."""
     paragraphs_df = pd.DataFrame(columns = ['speech_id','paragraph_text',
                                             'paragraph_order','paragraph_id'])
@@ -80,7 +80,7 @@ def pdf_to_cv2_images(pdf_path):
     cv2_images = [cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR) for image in pil_images]
     return cv2_images
 
-def doc_to_yearpart(filepath)
+def doc_to_yearpart(filepath):
     """Get year and part number from filename  """
     year = 0
     match = re.search(r'\d{4}', filepath)
@@ -242,6 +242,7 @@ for index, row in docs_df.iterrows():
                     
                     # code for 3 columns
                     if year >= 1941:
+                        pass
 
                         # TODO: test where on page the column splits are
                         ## maybe also use actual block data to inform (if sufficient # of blocks)
@@ -318,8 +319,8 @@ for index, row in docs_df.iterrows():
                             section_name = ocr_agent.detect(segment_image)
 
                             new_row = {'year': year, 'part': part, 'part_page': part_page, 
-                                'date': date, 'volume_page': "", 'section_name': section_name,
-                                'section_id': }
+                                       'date': date, 'volume_page': "", 'section_name': section_name,
+                                       'section_id': section_id}
                             sections_df = sections_df.append(new_row, ignore_index=True)
 
                             section_id += 1
@@ -374,7 +375,7 @@ for index, row in docs_df.iterrows():
                             speech_order += 1
                             paragraph_order = 1
 
-                        else 
+                        else: 
                             print("Block not categorized")
 
 
