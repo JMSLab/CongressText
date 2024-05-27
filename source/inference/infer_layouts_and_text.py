@@ -7,12 +7,17 @@ import re
 import numpy as np
 from pdf2image import convert_from_path
 from tqdm import tqdm
+import pytesseract
 
 # SaveData
 import sys
 sys.path.append('source/lib')
 from SaveData import SaveData
 
+# initialize tesseract
+home_dir = os.getenv('HOME')
+pytesseract.pytesseract.tesseract_cmd = home_dir + '/tesseract/tesseract'
+os.environ["TESSDATA_PREFIX"] = home_dir + "/tesseract/tessdata"
 
 
 model = lp.Detectron2LayoutModel(
@@ -178,6 +183,11 @@ for index, row in docs_df.iterrows():
         paragraph_id = row['paragraph_id'] 
         speaker_id = 0    # default is null
 
+        sections_new = []
+        paragraphs_new = []
+        speakers_new = []
+        speeches_new = []
+        
 
         for page_id, image in enumerate(tqdm(all_images)):
  
@@ -247,7 +257,7 @@ for index, row in docs_df.iterrows():
 
                     # combine all blocks    
                     all_Tblocks = lp.Layout(section_Tblocks + speech_Tblocks + speaker_Tblocks)
-                    pdb.set_trace()
+                    # pdb.set_trace()
 
                     ### order blocks by column and position on page
                     # columns depends on year
@@ -337,7 +347,7 @@ for index, row in docs_df.iterrows():
                             new_row = {'year': year, 'part': part, 'part_page': part_page, 
                                        'date': date, 'volume_page': "", 'section_name': section_name,
                                        'section_id': section_id}
-                            sections_df = sections_df.append(new_row, ignore_index=True)
+                            sections_new.append(new_row)
 
                             section_id += 1
                             speaker_id = 0    # reset speaker ID to null
@@ -355,7 +365,7 @@ for index, row in docs_df.iterrows():
 
                             new_row = {'speech_id': speech_id,'paragraph_text': paragraph_text,
                                             'paragraph_order': paragraph_order,'paragraph_id': paragraph_id}
-                            paragraphs_df = paragraphs_df.append(new_row, ignore_index=True)
+                            paragraphs_new.append(new_row)
 
                             paragraph_id += 1
                             paragraph_order += 1
@@ -372,20 +382,23 @@ for index, row in docs_df.iterrows():
 
                             # get speaker_id, or update df if none
                             if speaker_name in speaker_vals:
-                                speaker_id = speakers_df[speakers_df['speaker_name'] == speaker_name]['speaker_id'].iloc[0]
+                                try:
+                                    speaker_id = speakers_df[speakers_df['speaker_name'] == speaker_name]['speaker_id'].iloc[0]
+                                except IndexError:
+                                    speaker_id = next((item['speaker_id'] for item in speakers_new if item['speaker_name'] == speaker_name), None)
                             else:
                                 speaker_id = max(speaker_id,len(speaker_vals)) + 1
 
                                 new_row = {'speaker_id': speaker_id, 'speaker_name': speaker_name}
-                                speakers_df = speakers_df.append(new_row, ignore_index=True) 
+                                speakers_new.append(new_row) 
 
-                                speaker_vals = speakers_df['speaker_name'].values
+                                speaker_vals = np.append(speaker_vals,speaker_name)  # speakers_df['speaker_name'].values
 
 
                             # add new speech data
                             new_row = {'section_id': section_id,'speech_order': speech_order,'speaker_name': speaker_name,
                                             'speaker_id': speaker_id,'speech_id': speech_id}
-                            speeches_df = speeches_df.append(new_row, ignore_index=True)
+                            speeches_new.append(new_row)
 
                             speech_id += 1
                             speech_order += 1
@@ -400,10 +413,22 @@ for index, row in docs_df.iterrows():
 
             ## code for skip
             else:
-                print("SKIP page")
+                # print("SKIP page")
+                pass
                 
 
+        # update DFs by concat
+        sections_new_df = pd.DataFrame(sections_new)
+        paragraphs_new_df = pd.DataFrame(paragraphs_new)
+        speakers_new_df = pd.DataFrame(speakers_new)
+        speeches_new_df = pd.DataFrame(speeches_new)
 
+        sections_df = pd.concat([sections_df,sections_new_df],ignore_index=True)
+        paragraphs_df = pd.concat([paragraphs_df,paragraphs_new_df],ignore_index=True)
+        speakers_df = pd.concat([speakers_df,speakers_new_df],ignore_index=True)
+        speeches_df = pd.concat([speeches_df,speeches_new_df],ignore_index=True)
+        
+                
         # update progress doc
         docs_df.loc[index, 'complete'] = 1
 
@@ -427,7 +452,7 @@ for index, row in docs_df.iterrows():
         # para_path = str(year)+'_pt'+str(part)+'_paragraph.csv'
         # file_path = os.path.join(image_dir, para_path)
 
-
+        pdb.set_trace()
         
 
 
