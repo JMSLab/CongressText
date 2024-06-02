@@ -8,6 +8,7 @@ import numpy as np
 from pdf2image import convert_from_path
 from tqdm import tqdm
 import pytesseract
+from efficient_ocr import EffOCR
 
 # SaveData
 import sys
@@ -123,6 +124,53 @@ def doc_to_yearpart(filename):
     return year, part
 
 
+def init_effocr():
+    """Construct EffOCR engine"""
+    # TODO: potentially train model
+
+    # English
+    effocr = EffOCR(
+      config={
+          'Recognizer': {
+              'char': {
+                  'model_backend': 'onnx',
+                  'model_dir': './models',
+                  'hf_repo_id': 'dell-research-harvard/effocr_en/char_recognizer',
+              },
+              'word': {
+                  'model_backend': 'onnx',
+                  'model_dir': './models',
+                  'hf_repo_id': 'dell-research-harvard/effocr_en/word_recognizer',
+              },
+          },
+          'Localizer': {
+              'model_dir': './models',
+              'hf_repo_id': 'dell-research-harvard/effocr_en',
+              'model_backend': 'onnx'
+          },
+          'Line': {
+              'model_dir': './models',
+              'hf_repo_id': 'dell-research-harvard/effocr_en',
+              'model_backend': 'onnx',
+          },
+      }
+    )
+    return effocr
+
+def infer_img2txt(engine_type,engine,image):
+    """Goes from image to text using an OCR engine"""
+
+    text = None
+
+    if engine_type == "tesseract":
+        text = engine.detect(image)
+    elif engine_type == "effocr":
+        text = engine.infer(image)
+
+    return text
+
+
+effocr = init_effocr()
 
 
 # progress, at the document level
@@ -342,7 +390,8 @@ for index, row in docs_df.iterrows():
                                            .pad(left=5, right=5, top=5, bottom=5)
                                            .crop_image(image))
                             # standard ocr extraction
-                            section_name = ocr_agent.detect(segment_image)
+                            # section_name = infer_img2txt("tesseract",ocr_agent,segment_image)
+                            section_name = infer_img2txt("effocr",effocr,segment_image)
 
                             new_row = {'year': year, 'part': part, 'part_page': part_page, 
                                        'date': date, 'volume_page': "", 'section_name': section_name,
@@ -360,7 +409,7 @@ for index, row in docs_df.iterrows():
                                            .pad(left=5, right=5, top=5, bottom=5)
                                            .crop_image(image))
                             # standard ocr extraction
-                            paragraph_text = ocr_agent.detect(segment_image)
+                            paragraph_text = infer_img2txt("effocr",effocr,segment_image)
 
 
                             new_row = {'speech_id': speech_id,'paragraph_text': paragraph_text,
@@ -378,7 +427,7 @@ for index, row in docs_df.iterrows():
                                            .pad(left=5, right=5, top=5, bottom=5)
                                            .crop_image(image))
                             # standard ocr extraction
-                            speaker_name = ocr_agent.detect(segment_image)
+                            speaker_name = infer_img2txt("effocr",effocr,segment_image)
 
                             # get speaker_id, or update df if none
                             if speaker_name in speaker_vals:
