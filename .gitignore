@@ -1,6 +1,7 @@
 /drive
 /datastore
 /temp
+/models
 *.pyc
 *.lyx~
 *.lyx#

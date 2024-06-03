@@ -8,7 +8,7 @@ import numpy as np
 from pdf2image import convert_from_path
 from tqdm import tqdm
 import pytesseract
-from efficient_ocr import EffOCR
+# from efficient_ocr import EffOCR
 
 # SaveData
 import sys
@@ -165,12 +165,13 @@ def infer_img2txt(engine_type,engine,image):
     if engine_type == "tesseract":
         text = engine.detect(image)
     elif engine_type == "effocr":
-        text = engine.infer(image)
+        pdb.set_trace()
+        text = engine.detect(image) # engine.infer(image)
 
     return text
 
 
-effocr = init_effocr()
+effocr = lp.EffOCRAgent() # init_effocr()
 
 
 # progress, at the document level
