@@ -209,7 +209,7 @@ def main(chunk_file):
 
 
 
-                for page_id, image in enumerate(tqdm(chunk[0:7])):
+                for page_id, image in enumerate(tqdm(chunk)):
 
                     layout = model.detect(image)
 
@@ -469,7 +469,7 @@ def main(chunk_file):
             # docs_df.loc[index+1, 'speech_id'] = speech_id
             # docs_df.loc[index+1, 'paragraph_id'] = paragraph_id
 
-            pdb.set_trace()
+            # pdb.set_trace()
             # # save data
             # SaveData(docs_df,['title'],docsdf_path,docsdf_log)
             # SaveData(sections_df,['section_id'],sectionsdf_path,sectionsdf_log)
@@ -491,7 +491,7 @@ def main(chunk_file):
             # para_path = str(year)+'_pt'+str(part)+'_paragraph.csv'
             # file_path = os.path.join(image_dir, para_path)
 
-            pdb.set_trace()
+            # pdb.set_trace()
             
 
 

@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import os
 
 inference_dir = 'datastore/inference'
 
@@ -75,10 +76,10 @@ if not os.path.isfile(docsdf_path):
 
 
 # Load the document list
-df = pd.read_csv("{inference_dir}/docs.csv")
+df = pd.read_csv(f'{inference_dir}/docs.csv')
 
 # Filter out already processed documents
-files_to_process = df[df['processed'] == 0]['filepath'].tolist()
+files_to_process = df[df['complete'] == 0]
 
 # Divide the list into chunks
 num_chunks = 10  # Adjust based on the number of available CPUs/nodes
@@ -86,5 +87,4 @@ chunks = np.array_split(files_to_process, num_chunks)
 
 # Save each chunk to a separate CSV file
 for i, chunk in enumerate(chunks):
-    chunk_df = pd.DataFrame(chunk, columns=['filepath'])
-    chunk_df.to_csv(f'{inference_dir}/chunk_{i}.csv', index=False)
+    chunk.to_csv(f'{inference_dir}/chunk_{i}.csv', index=False)
