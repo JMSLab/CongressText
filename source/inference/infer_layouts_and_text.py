@@ -5,6 +5,7 @@ import pandas as pd
 import pdb
 import re
 import numpy as np
+import pymupdf
 from pdf2image import convert_from_path
 from tqdm import tqdm
 import pytesseract
@@ -32,7 +33,7 @@ output_dir = 'output/inference'
 inference_dir = 'datastore/inference'
 
 ocr_agent = lp.TesseractAgent(languages='eng') 
-
+engine_type = "tesseract"
 
 
 def files_to_dprogress_df(image_dir):
@@ -97,11 +98,20 @@ def new_paragraph_df():
     return paragraphs_df
 
 
-def pdf_to_cv2_images(pdf_path):
+def pdf_to_cv2_images(pdf_path,first_page,last_page):
     """Convert a PDF file to a list of images for cv2"""
-    pil_images = convert_from_path(pdf_path)
+    pil_images = convert_from_path(pdf_path,first_page=first_page,last_page=last_page)
     # convert to array, from RGB to BGR for OpenCV
+
+    for image in pil_images:
+        img_array = np.array(image)
+        if img_array is None or not isinstance(img_array, np.ndarray):
+            raise ValueError("Conversion to numpy array failed.")
+        if len(img_array.shape) != 3 or img_array.shape[2] != 3:
+            raise ValueError("Image is not in the expected format (H x W x 3).")
+    
     cv2_images = [cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR) for image in pil_images]
+    # cv2_images = [cv2.cvtColor(cv2.imread(image), cv2.COLOR_BGR2RGB)  for image in pil_images]
     return cv2_images
 
 def doc_to_yearpart(filename):
@@ -165,14 +175,28 @@ def infer_img2txt(engine_type,engine,image):
     if engine_type == "tesseract":
         text = engine.detect(image)
     elif engine_type == "effocr":
-        pdb.set_trace()
+        # pdb.set_trace()
         text = engine.detect(image) # engine.infer(image)
 
     return text
 
+def get_pdf_page_count(pdf_path):
+    """Get page count without loading file"""
+    doc = pymupdf.open(pdf_path)
+    return doc.page_count
 
-effocr = lp.EffOCRAgent() # init_effocr()
+def convert_pdf_in_chunks(pdf_path, chunk_size=100):
+    """Handle PDF chunking for memory limits"""
+    total_pages = get_pdf_page_count(pdf_path)
+    chunks = [(i, min(i + chunk_size, total_pages)) for i in range(0, total_pages, chunk_size)]
+    
+    for start, end in chunks:
+        yield pdf_to_cv2_images(pdf_path, first_page=start+1, last_page=end)
 
+
+
+# effocr = lp.EffOCRAgent() # init_effocr()
+# engine_type = "effocr"
 
 # progress, at the document level
 docsdf_path = inference_dir + "/docs.csv"
@@ -218,254 +242,266 @@ for index, row in docs_df.iterrows():
         print(file_path)
         year, part = doc_to_yearpart(row['title'])
 
-        # convert PDF pages to PNG
-        all_images = pdf_to_cv2_images(file_path)
-        print("--- All pages loaded to PNG")
-
         # set up for new document
         paragraphs_df = new_paragraph_df()
         paragraphsdf_path = image_dir + f"/paragraphs_{year}_pt{part}.csv"
         paragraphsdf_log = output_dir + f"/paragraphs_{year}_pt{part}.log"
 
-        section_id = row['section_id'] 
-        speech_id = row['speech_id'] 
-        paragraph_id = row['paragraph_id'] 
+        section_id = 0 # row['section_id'] 
+        speech_id = 0 # row['speech_id'] 
+        paragraph_id = 0 # row['paragraph_id'] 
         speaker_id = 0    # default is null
 
         sections_new = []
         paragraphs_new = []
         speakers_new = []
         speeches_new = []
-        
 
-        for page_id, image in enumerate(tqdm(all_images)):
- 
-            layout = model.detect(image)
+        # convert PDF pages to PNG
+        for chunk in convert_pdf_in_chunks(file_path):
             
-            # type guide:
-            # 0 is title
-            # 1 is section
-            # 2 is skip
-            # 3 is speaker
-            # 4 is speech
+            # all_images = pdf_to_cv2_images(file_path)
+            print("--- Chunk loaded to PNG")
 
 
-            ## if any skip, skip
-            if len(layout) > 0 and not any(item.type == 2 for item in layout):
-                # pdb.set_trace()
-                height, width = image.shape[:2]
 
-                ## set IDs
-                layout = lp.Layout([b.set(id=idx) for idx, b in enumerate(layout)])
+            for page_id, image in enumerate(tqdm(chunk[0:7])):
 
-                ## handle titles
-                titles = lp.Layout([b for b in layout if b.type==0])  
-                titles.sort(key = lambda b:b.coordinates[1], inplace=True)
-                ## section headings
-                sections = lp.Layout([b for b in layout if b.type==1])  
-                ## speech
-                speeches = lp.Layout([b for b in layout if b.type==4]) 
-                ## speakers
-                speakers = lp.Layout([b for b in layout if b.type==3]) 
+                layout = model.detect(image)
 
-                
-                # get page data from first title
-                part_page = page_id + 1
-                ### TODO: extract this correctly; 
-                ### format changes over time (need to alternate page numbers for date/year earlier)
-                ### maybe exclude middle section
-                date = titles[0] if titles else ""
+                # type guide:
+                # 0 is title
+                # 1 is section
+                # 2 is skip
+                # 3 is speaker
+                # 4 is speech
 
 
-                ### TODO: split into functions for testing
-
-                
-
-
-                ## split vertically by title block
-                for title_id, title in enumerate(titles if titles else [""]): 
-
-                    ### cleaning at title level
-
-                    # get relevant blocks within the title
-                    upper_y = height
-                    # if not last title, set upper bound for y at next title y
-                    if len(titles) > 0 and title != titles[-1]:
-                        # 5 px grace
-                        upper_y = titles[title_id + 1].coordinates[1] + 5
-
-                    # first, keep everything below upper bound
-                    section_Tblocks = [b for b in sections if b.coordinates[1] <= upper_y]
-                    speech_Tblocks = [b for b in speeches if b.coordinates[1] <= upper_y]
-                    speaker_Tblocks = [b for b in speakers if b.coordinates[1] <= upper_y]
-
-                    # remove from original list
-                    sections = [b for b in sections if b.coordinates[1] > upper_y]
-                    speeches = [b for b in speeches if b.coordinates[1] > upper_y]
-                    speakers = [b for b in speakers if b.coordinates[1] > upper_y]
-
-                    # combine all blocks    
-                    all_Tblocks = lp.Layout(section_Tblocks + speech_Tblocks + speaker_Tblocks)
+                ## if any skip, skip
+                if len(layout) > 0 and not any(item.type == 2 for item in layout):
                     # pdb.set_trace()
+                    height, width = image.shape[:2]
 
-                    ### order blocks by column and position on page
-                    # columns depends on year
-                    # after (inclusive) 1941 volume 87 77th Congress, 3 columns
-                    # before, 2 columns
-                    
-                    # code for 3 columns
-                    if year >= 1941:
-                        pass
+                    ## set IDs
+                    layout = lp.Layout([b.set(id=idx) for idx, b in enumerate(layout)])
 
-                        # TODO: test where on page the column splits are
-                        ## maybe also use actual block data to inform (if sufficient # of blocks)
-
-                    # code for 2 columns
-                    else: 
-
-                        # split alongside middle
-                        left_interval = lp.Interval(0, width/2*1.05, axis='x').put_on_canvas(image)
-
-                        left_blocks = all_Tblocks.filter_by(left_interval, center=True)
-                        left_blocks.sort(key = lambda b:b.coordinates[1], inplace=True)
-                        # The b.coordinates[1] corresponds to the y coordinate of the region
-                        # sort based on that can simulate the top-to-bottom reading order 
-                        right_blocks = lp.Layout([b for b in all_Tblocks if b not in left_blocks])
-                        right_blocks.sort(key = lambda b:b.coordinates[1], inplace=True)
+                    ## handle titles
+                    titles = lp.Layout([b for b in layout if b.type==0])  
+                    titles.sort(key = lambda b:b.coordinates[1], inplace=True)
+                    ## section headings
+                    sections = lp.Layout([b for b in layout if b.type==1])  
+                    ## speech
+                    speeches = lp.Layout([b for b in layout if b.type==4]) 
+                    ## speakers
+                    speakers = lp.Layout([b for b in layout if b.type==3]) 
 
 
-                        # And finally combine the two lists and add the index
-                        # all_Tblocks = lp.Layout([b.set(id = idx) for idx, b in enumerate(left_blocks + right_blocks)])
-                        all_Tblocks = left_blocks + right_blocks
-
-                    
-                    ### order blocks correctly
-                    # primary concern: handling speakers that appear after speeches they are associated with
-                    ordered_blocks = []
-                    # set of IDs
-                    inserted_speakers = set()
-
-                    for block in all_Tblocks:
-                        # always insert section blocks when encountered
-                        if block in section_Tblocks:
-                            ordered_blocks.append(block)
-                        # for speeches, look ahead for speaker blocks with a high intersection
-                        elif block in speech_Tblocks:
-                            best_speaker = None
-                            max_intersection_area = 0
-                            
-                            for speaker_block in speaker_Tblocks:
-                                if speaker_block.id not in inserted_speakers:
-                                    intersection = block.intersect(speaker_block)
-                                    intersection_area = intersection.area
-                                    
-                                    # check for large intersection (and max of all seen)
-                                    if intersection_area > 0.7 * speaker_block.area and intersection_area > max_intersection_area:
-                                        best_speaker = speaker_block
-                                        max_intersection_area = intersection_area
-
-                            # insert speaker before the speech block
-                            if best_speaker:
-                                ordered_blocks.append(best_speaker)
-                                inserted_speakers.add(best_speaker.id)  # Mark this speaker as inserted
-
-                            # insert the speech block
-                            ordered_blocks.append(block)
-
-                        # handle speaker blocks only if they haven't been inserted yet
-                        elif block in speaker_Tblocks:
-                            if block.id not in inserted_speakers:
-                                ordered_blocks.append(block)
-                                inserted_speakers.add(block.id)
+                    # get page data from first title
+                    part_page = page_id + 1
+                    ### TODO: extract this correctly; 
+                    ### format changes over time (need to alternate page numbers for date/year earlier)
+                    ### maybe exclude middle section
+                    date = titles[0] if titles else ""
 
 
-                    ### extract info from blocks
-                    for block in ordered_blocks:
-
-                        # get data for sections
-                        ### TODO: update date/volume_page! see above
-                        if block in section_Tblocks:
-
-                            # crop w/ padding in each segment for robustness
-                            segment_image = (block
-                                           .pad(left=5, right=5, top=5, bottom=5)
-                                           .crop_image(image))
-                            # standard ocr extraction
-                            # section_name = infer_img2txt("tesseract",ocr_agent,segment_image)
-                            section_name = infer_img2txt("effocr",effocr,segment_image)
-
-                            new_row = {'year': year, 'part': part, 'part_page': part_page, 
-                                       'date': date, 'volume_page': "", 'section_name': section_name,
-                                       'section_id': section_id}
-                            sections_new.append(new_row)
-
-                            section_id += 1
-                            speaker_id = 0    # reset speaker ID to null
-                            speech_order = 1  # always first speech afterwards
-
-                        elif block in speech_Tblocks:
-
-                            # crop w/ padding in each segment for robustness
-                            segment_image = (block
-                                           .pad(left=5, right=5, top=5, bottom=5)
-                                           .crop_image(image))
-                            # standard ocr extraction
-                            paragraph_text = infer_img2txt("effocr",effocr,segment_image)
+                    ### TODO: split into functions for testing
 
 
-                            new_row = {'speech_id': speech_id,'paragraph_text': paragraph_text,
-                                            'paragraph_order': paragraph_order,'paragraph_id': paragraph_id}
-                            paragraphs_new.append(new_row)
-
-                            paragraph_id += 1
-                            paragraph_order += 1
 
 
-                        elif block in speaker_Tblocks:
+                    ## split vertically by title block
+                    for title_id, title in enumerate(titles if titles else [""]): 
 
-                            # crop w/ padding in each segment for robustness
-                            segment_image = (block
-                                           .pad(left=5, right=5, top=5, bottom=5)
-                                           .crop_image(image))
-                            # standard ocr extraction
-                            speaker_name = infer_img2txt("effocr",effocr,segment_image)
+                        ### cleaning at title level
 
-                            # get speaker_id, or update df if none
-                            if speaker_name in speaker_vals:
-                                try:
-                                    speaker_id = speakers_df[speakers_df['speaker_name'] == speaker_name]['speaker_id'].iloc[0]
-                                except IndexError:
-                                    speaker_id = next((item['speaker_id'] for item in speakers_new if item['speaker_name'] == speaker_name), None)
-                            else:
-                                speaker_id = max(speaker_id,len(speaker_vals)) + 1
+                        # get relevant blocks within the title
+                        upper_y = height
+                        # if not last title, set upper bound for y at next title y
+                        if len(titles) > 0 and title != titles[-1]:
+                            # 5 px grace
+                            upper_y = titles[title_id + 1].coordinates[1] + 5
 
-                                new_row = {'speaker_id': speaker_id, 'speaker_name': speaker_name}
-                                speakers_new.append(new_row) 
+                        # first, keep everything below upper bound
+                        section_Tblocks = [b for b in sections if b.coordinates[1] <= upper_y]
+                        speech_Tblocks = [b for b in speeches if b.coordinates[1] <= upper_y]
+                        speaker_Tblocks = [b for b in speakers if b.coordinates[1] <= upper_y]
 
-                                speaker_vals = np.append(speaker_vals,speaker_name)  # speakers_df['speaker_name'].values
+                        # remove from original list
+                        sections = [b for b in sections if b.coordinates[1] > upper_y]
+                        speeches = [b for b in speeches if b.coordinates[1] > upper_y]
+                        speakers = [b for b in speakers if b.coordinates[1] > upper_y]
 
+                        # combine all blocks    
+                        all_Tblocks = lp.Layout(section_Tblocks + speech_Tblocks + speaker_Tblocks)
+                        # pdb.set_trace()
 
-                            # add new speech data
-                            new_row = {'section_id': section_id,'speech_order': speech_order,'speaker_name': speaker_name,
-                                            'speaker_id': speaker_id,'speech_id': speech_id}
-                            speeches_new.append(new_row)
+                        ### order blocks by column and position on page
+                        # columns depends on year
+                        # after (inclusive) 1941 volume 87 77th Congress, 3 columns
+                        # before, 2 columns
 
-                            speech_id += 1
-                            speech_order += 1
-                            paragraph_order = 1
+                        # code for 3 columns
+                        if year >= 1941:
+                            pass
 
+                            # TODO: test where on page the column splits are
+                            ## maybe also use actual block data to inform (if sufficient # of blocks)
+
+                        # code for 2 columns
                         else: 
-                            print("Block not categorized")
+
+                            # split alongside middle
+                            left_interval = lp.Interval(0, width/2*1.05, axis='x').put_on_canvas(image)
+
+                            left_blocks = all_Tblocks.filter_by(left_interval, center=True)
+                            left_blocks.sort(key = lambda b:b.coordinates[1], inplace=True)
+                            # The b.coordinates[1] corresponds to the y coordinate of the region
+                            # sort based on that can simulate the top-to-bottom reading order 
+                            right_blocks = lp.Layout([b for b in all_Tblocks if b not in left_blocks])
+                            right_blocks.sort(key = lambda b:b.coordinates[1], inplace=True)
 
 
-                # extract to JSON?
+                            # And finally combine the two lists and add the index
+                            # all_Tblocks = lp.Layout([b.set(id = idx) for idx, b in enumerate(left_blocks + right_blocks)])
+                            all_Tblocks = left_blocks + right_blocks
 
 
-            ## code for skip
-            else:
-                # print("SKIP page")
-                pass
-                
+                        ### order blocks correctly
+                        # primary concern: handling speakers that appear after speeches they are associated with
+                        ordered_blocks = []
+                        # set of IDs
+                        inserted_speakers = set()
+
+                        for block in all_Tblocks:
+                            # always insert section blocks when encountered
+                            if block in section_Tblocks:
+                                ordered_blocks.append(block)
+                            # for speeches, look ahead for speaker blocks with a high intersection
+                            elif block in speech_Tblocks:
+                                best_speaker = None
+                                max_intersection_area = 0
+
+                                for speaker_block in speaker_Tblocks:
+                                    if speaker_block.id not in inserted_speakers:
+                                        intersection = block.intersect(speaker_block)
+                                        intersection_area = intersection.area
+
+                                        # check for large intersection (and max of all seen)
+                                        if intersection_area > 0.7 * speaker_block.area and intersection_area > max_intersection_area:
+                                            best_speaker = speaker_block
+                                            max_intersection_area = intersection_area
+
+                                # insert speaker before the speech block
+                                if best_speaker:
+                                    ordered_blocks.append(best_speaker)
+                                    inserted_speakers.add(best_speaker.id)  # Mark this speaker as inserted
+
+                                # insert the speech block
+                                ordered_blocks.append(block)
+
+                            # handle speaker blocks only if they haven't been inserted yet
+                            elif block in speaker_Tblocks:
+                                if block.id not in inserted_speakers:
+                                    ordered_blocks.append(block)
+                                    inserted_speakers.add(block.id)
+
+
+                        ### extract info from blocks
+                        for block in ordered_blocks:
+
+                            # get data for sections
+                            ### TODO: update date/volume_page! see above
+                            if block in section_Tblocks:
+
+                                # crop w/ padding in each segment for robustness
+                                segment_image = (block
+                                               .pad(left=1, right=1, top=1, bottom=1)
+                                               .crop_image(image))
+                                # standard ocr extraction
+                                section_name = infer_img2txt(engine_type,ocr_agent,segment_image)
+                                # section_name = infer_img2txt("effocr",effocr,segment_image)
+
+                                section_id_text = "_".join(map(str, [year, part, section_id]))
+                                new_row = {'year': year, 'part': part, 'part_page': part_page, 
+                                           'date': date, 'volume_page': "", 'section_name': section_name,
+                                           'section_id': section_id_text}
+                                sections_new.append(new_row)
+
+                                section_id += 1
+                                speaker_id = 0    # reset speaker ID to null
+                                speech_order = 1  # always first speech afterwards
+
+                            elif block in speech_Tblocks:
+
+                                # crop w/ padding in each segment for robustness
+                                segment_image = (block
+                                               .pad(left=1, right=1, top=1, bottom=1)
+                                               .crop_image(image))
+                                # standard ocr extraction
+                                paragraph_text = infer_img2txt(engine_type,ocr_agent,segment_image)
+                                # paragraph_text = infer_img2txt("effocr",effocr,segment_image)
+
+                                speech_id_text = "_".join(map(str, [year, part, speech_id]))
+                                paragraph_id_text = "_".join(map(str, [year, part, paragraph_id]))
+                                new_row = {'speech_id': speech_id_text,'paragraph_text': paragraph_text,
+                                                'paragraph_order': paragraph_order,'paragraph_id': paragraph_id_text}
+                                paragraphs_new.append(new_row)
+
+                                paragraph_id += 1
+                                paragraph_order += 1
+
+
+                            elif block in speaker_Tblocks:
+
+                                # crop w/ padding in each segment for robustness
+                                segment_image = (block
+                                               .pad(left=1, right=1, top=1, bottom=1)
+                                               .crop_image(image))
+                                # standard ocr extraction
+                                speaker_name = infer_img2txt(engine_type,ocr_agent,segment_image)
+                                # speaker_name = infer_img2txt("effocr",effocr,segment_image)
+
+                                # get speaker_id, or update df if none
+                                speaker_id_text = ""
+                                if speaker_name in speaker_vals:
+                                    try:
+                                        speaker_id_text = speakers_df[speakers_df['speaker_name'] == speaker_name]['speaker_id'].iloc[0]
+                                    except IndexError:
+                                        speaker_id_text = next((item['speaker_id'] for item in speakers_new if item['speaker_name'] == speaker_name), None)
+                                else:
+                                    speaker_id = max(speaker_id,len(speaker_vals)) + 1
+                                    speaker_id_text = "_".join(map(str, [year, part, speaker_id]))
+
+                                    new_row = {'speaker_id': speaker_id_text, 'speaker_name': speaker_name}
+                                    speakers_new.append(new_row) 
+
+                                    speaker_vals = np.append(speaker_vals,speaker_name)  # speakers_df['speaker_name'].values
+
+
+                                # add new speech data
+                                section_id_text = "_".join(map(str, [year, part, section_id]))
+                                speech_id_text = "_".join(map(str, [year, part, speech_id]))
+
+                                new_row = {'section_id': section_id_text,'speech_order': speech_order,'speaker_name': speaker_name,
+                                                'speaker_id': speaker_id_text,'speech_id': speech_id_text}
+                                speeches_new.append(new_row)
+
+                                speech_id += 1
+                                speech_order += 1
+                                paragraph_order = 1
+
+                            else: 
+                                print("Block not categorized")
+
+
+                    # extract to JSON?
+
+
+                ## code for skip
+                else:
+                    # print("SKIP page")
+                    pass
+
 
         # update DFs by concat
         sections_new_df = pd.DataFrame(sections_new)
@@ -487,6 +523,7 @@ for index, row in docs_df.iterrows():
         docs_df.loc[index+1, 'speech_id'] = speech_id
         docs_df.loc[index+1, 'paragraph_id'] = paragraph_id
 
+        pdb.set_trace()
         # save data
         SaveData(docs_df,['title'],docsdf_path,docsdf_log)
         SaveData(sections_df,['section_id'],sectionsdf_path,sectionsdf_log)

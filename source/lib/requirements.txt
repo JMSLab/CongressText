@@ -20,3 +20,4 @@ ijson~=3.2.0.post0
 layoutparser[ocr]
 tesseract
 efficient_ocr
+PyMuPDF
