@@ -188,13 +188,15 @@ def main(chunk_file):
 
             # set up for new document
             paragraphs_df = new_paragraph_df()
-            paragraphsdf_path = image_dir + f"/paragraphs_{year}_pt{part}.csv"
+            paragraphsdf_path = inference_dir + f"/paragraphs_{year}_pt{part}.csv"
             paragraphsdf_log = output_dir + f"/paragraphs_{year}_pt{part}.log"
 
             section_id = 0 # row['section_id'] 
             speech_id = 0 # row['speech_id'] 
             paragraph_id = 0 # row['paragraph_id'] 
             speaker_id = 0    # default is null
+
+            chunk_num = 0
 
             sections_new = []
             paragraphs_new = []
@@ -241,7 +243,7 @@ def main(chunk_file):
 
 
                         # get page data from first title
-                        part_page = page_id + 1
+                        part_page = chunk_num*100 + page_id + 1
                         ### TODO: extract this correctly; 
                         ### format changes over time (need to alternate page numbers for date/year earlier)
                         ### maybe exclude middle section
@@ -286,10 +288,29 @@ def main(chunk_file):
 
                             # code for 3 columns
                             if year >= 1941:
-                                pass
 
-                                # TODO: test where on page the column splits are
-                                ## maybe also use actual block data to inform (if sufficient # of blocks)
+                                # Define thresholds for the groups
+                                left_threshold = 0.35 * width
+                                right_threshold = 0.62 * width
+
+                                # Define intervals for left, middle, and right groups
+                                left_interval = lp.Interval(0, left_threshold, axis='x').put_on_canvas(image)
+                                middle_interval = lp.Interval(left_threshold, right_threshold, axis='x').put_on_canvas(image)
+                                right_interval = lp.Interval(right_threshold, width, axis='x').put_on_canvas(image)
+
+                                # Filter blocks into left, middle, and right groups
+                                left_blocks = all_Tblocks.filter_by(left_interval, center=True)
+                                middle_blocks = all_Tblocks.filter_by(middle_interval, center=True)
+                                right_blocks = all_Tblocks.filter_by(right_interval, center=True)
+
+                                # Sort blocks in each group by y-coordinate (top-to-bottom reading order)
+                                left_blocks.sort(key=lambda b: b.coordinates[1], inplace=True)
+                                middle_blocks.sort(key=lambda b: b.coordinates[1], inplace=True)
+                                right_blocks.sort(key=lambda b: b.coordinates[1], inplace=True)
+
+                                # Combine the blocks in the desired order (left, middle, right)
+                                all_Tblocks = left_blocks + middle_blocks + right_blocks
+
 
                             # code for 2 columns
                             else: 
@@ -445,6 +466,7 @@ def main(chunk_file):
                     else:
                         # print("SKIP page")
                         pass
+                chunk_num += 1
 
 
             # update DFs by concat
