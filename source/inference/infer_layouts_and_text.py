@@ -195,6 +195,8 @@ def main(chunk_file):
             speech_id = 0 # row['speech_id'] 
             paragraph_id = 0 # row['paragraph_id'] 
             speaker_id = 0    # default is null
+            speech_order = 1  # initialize
+            paragraph_order = 1 # initialize
 
             sections_new = []
             paragraphs_new = []
