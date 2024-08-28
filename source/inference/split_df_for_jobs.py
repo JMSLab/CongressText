@@ -1,8 +1,10 @@
 import pandas as pd
 import numpy as np
 import os
+import re
 
 inference_dir = 'datastore/inference'
+image_dir = 'datastore/scrape/cr-bound'
 
 docsdf_path = inference_dir + "/docs.csv"
 sectionsdf_path = inference_dir + "/sections.csv"

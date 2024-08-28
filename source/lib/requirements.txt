@@ -21,3 +21,6 @@ layoutparser[ocr]
 tesseract
 efficient_ocr
 PyMuPDF
+numpy==1.23.5
+opencv-python==4.10.0.84
+pdf2image==1.17.0

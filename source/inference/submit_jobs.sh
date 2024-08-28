@@ -1,6 +1,6 @@
 #!/bin/bash
 
-num_chunks=2   # 10  # Adjust based on the number of chunks to run
+num_chunks=10   # 10  # Adjust based on the number of chunks to run
 
 for i in $(seq 0 $((num_chunks - 1)))
 do
