@@ -14,6 +14,7 @@ module purge
 export PYTHONPATH=/n/home12/andrewkao/.conda/envs/pDL/lib/python3.10/site-packages:$PYTHONPATH
 module load python ##/3.10.12-fasrc01  
 ## module load Mambaforge/23.3.1-fasrc01   
+conda deactivate
 conda activate pDL
 
 python source/inference/infer_layouts_and_text.py datastore/inference/chunk_${1}.csv
