@@ -134,6 +134,7 @@ def get_speakers(voteview,speech_dta,congress,algorithm):
     # step 1: block match on session of Congress
     # only keep rows in `voteview` that exactly match `congress`
     voteview = voteview[voteview['congress'] == congress].reset_index(drop=True)
+    voteview = voteview.drop_duplicates(subset='icpsr', keep='first')
 
     # step 2: match to state
     # voteview `state_abbrev` is the two letter abbrevation
@@ -193,7 +194,7 @@ def get_speakers(voteview,speech_dta,congress,algorithm):
 
     # Convert the results to a DataFrame, replacing None with NaN
     exact_match_df = pd.DataFrame(exact_matches.tolist(), index=speech_dta.index)
-    exact_match_df = exact_match_df.applymap(lambda x: x if x else np.nan) # replace empty with NaN
+    exact_match_df = exact_match_df.map(lambda x: x if x else np.nan) # replace empty with NaN
     exact_match_df = exact_match_df.rename(columns={'state_abbrev': 'state_abbrev_match'}) # rename overlap
 
     # Join the results, using the original index
@@ -298,8 +299,11 @@ speech_dta, congress = load_dta(filename)
 
 speech_dta = clean_speakers(speech_dta)
 merged_dta = get_speakers(voteview,speech_dta, congress,algorithm='baseline')
-## TODO: fix many to 1 
+## TODO: fix many to 1
+
 ## verify that fuzzy matches are reasonable, not just collisions
+
+## count how many unmatched are plausibly improvable
 
 ## TODO: actual test-train set for different algorithms
 
