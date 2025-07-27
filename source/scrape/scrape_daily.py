@@ -8,10 +8,13 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver import Chrome
 from tqdm import tqdm
+import shutil
 
 # --- SETTINGS ---
 START_DATE = datetime(1994, 1, 25)
 END_DATE = datetime(2025, 7, 2)
+RESCRAPE_EARLY = True  # <-- Set to True to force rescrape through 2006-09-22
+
 DOWNLOAD_DIR = "/Users/AndrewKao/Downloads"    
 STORAGE_DIR = "/Users/AndrewKao/Documents/Grad/staffers/datastore/scrape/cr-daily"       
 CSV_FILE = STORAGE_DIR + "/link_list.csv"
@@ -58,7 +61,7 @@ def save_progress(df):
 def is_downloaded(filename):
     return os.path.exists(os.path.join(DOWNLOAD_DIR, filename))
 
-def wait_for_download(filename, timeout=300):
+def wait_for_download(filename, timeout=900):
     target = os.path.join(DOWNLOAD_DIR, filename)
     for _ in range(timeout):
         if os.path.exists(target):
@@ -97,37 +100,51 @@ def move_and_unzip(filename):
         return str(e)
 
 
-def check_url_exists(url, retries=3, delay=3):
+def check_url_exists(url, retries=3, delay=10):
+    headers = {'User-Agent': (
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36')}
     for attempt in range(retries):
         try:
-            r = requests.head(url, allow_redirects=True, timeout=10)
-            if (r.status_code == 200) and ('/error' not in r.url):
+            r = requests.get(url, headers=headers, timeout=10, allow_redirects=True)
+            if '/error' in r.url:
+                return False
+            # Accept if ZIP file and not tiny/empty
+            if r.status_code == 200 and 'zip' in r.headers.get('Content-Type', '').lower() and len(r.content) > 1000:
                 return True
-            # Some servers may misbehave with HEAD, so try GET
-            r = requests.get(url, stream=True, allow_redirects=True, timeout=10)
-            if (r.status_code == 200) and ('/error' not in r.url):
-                return True
+            if r.status_code == 404:
+                return False
         except Exception as e:
             if attempt < retries - 1:
                 time.sleep(delay)
             else:
                 print(f"URL check failed for {url}: {e}")
     return False
+
     
 # --- MAIN LOOP ---
 def main():
     dates, urls = generate_date_links(START_DATE, END_DATE)
     init_csv(dates, urls)
     df = load_progress()
+    cutoff_date = datetime(2006, 9, 22)
 
     for idx, row in tqdm(df.iterrows(), total=len(df)):
-        if pd.notna(row['applicable']) and row['applicable'] is False:
-            continue
-        if row['completed']:
-            continue
 
         date_str, url = row['date'], row['url']
         zip_name = url.split("/")[-1]
+        row_date = datetime.strptime(date_str, "%Y-%m-%d")
+
+        # Logic: Force re-scrape on or before cutoff date if flag is set
+        rescrape_this_row = False
+        if RESCRAPE_EARLY and row_date <= cutoff_date:
+            rescrape_this_row = True
+
+        # Skipping logic
+        if not rescrape_this_row:
+            if pd.notna(row['applicable']) and row['applicable'] is False:
+                continue
+            if row['completed']:
+                continue
 
         # Step 1: Check if applicable
         if not check_url_exists(url):
