@@ -80,21 +80,6 @@ def move_and_unzip(filename):
         # Move zip
         dest_zip = os.path.join(STORAGE_DIR, filename)
         os.rename(src, dest_zip)
-        # Unzip
-        with ZipFile(dest_zip, 'r') as zip_ref:
-            zip_ref.extractall(dest_dir)
-        os.remove(dest_zip)
-        # Handle nested directory
-        subfolder = os.path.join(dest_dir, os.path.basename(dest_dir))
-        if os.path.isdir(subfolder):
-            # Move all contents up
-            for item in os.listdir(subfolder):
-                shutil.move(os.path.join(subfolder, item), dest_dir)
-            os.rmdir(subfolder)
-        # Check structure
-        html_dir = os.path.join(dest_dir, 'html')
-        if not os.path.isdir(html_dir):
-            return False
         return True
     except Exception as e:
         return str(e)
@@ -126,7 +111,7 @@ def main():
     dates, urls = generate_date_links(START_DATE, END_DATE)
     init_csv(dates, urls)
     df = load_progress()
-    cutoff_date = datetime(2006, 9, 22)
+    cutoff_date = datetime(2025, 7, 31)
 
     for idx, row in tqdm(df.iterrows(), total=len(df)):
 
