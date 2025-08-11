@@ -13,22 +13,18 @@ import numpy as np
 inference_dir = 'datastore/inference'
 
 # returns ground truth data
-def load_voteview():
-    voteview = pd.read_csv(inference_dir + "/voteview/ideology_all_members.csv")
-
-    # separate last name and first name in column `bioname`
-    # all names are formatted as "LAST, first"  such as "GOODHUE, Benjamin"
-    voteview[['lastname', 'firstname']] = voteview['bioname'].str.split(',', n=1, expand=True)
+def load_legislators():
+    legislators = pd.read_csv(inference_dir + "/congress_legislators.csv")
 
     # text to lower case
-    voteview['lastname'] = voteview['lastname'].str.lower()
-    voteview['firstname'] = voteview['firstname'].str.lower()
+    legislators['lastname'] = legislators['last_name'].str.lower()
+    legislators['firstname'] = legislators['first_name'].str.lower()
+    legislators['nickname'] = legislators['nickname'].str.lower()
 
-    # return lastname, firstname, chamber, congress, icpsr, district_code, state_abbrev
-    columns_to_keep = ['lastname', 'firstname', 'chamber', 'congress', 'icpsr', 'district_code', 'state_abbrev']
-    voteview = voteview[columns_to_keep]
+    columns_to_keep = ['lastname', 'firstname', 'nickname', 'chamber', 'congress', 'icpsr', 'district_code', 'state_abbrev']
+    legislators = legislators[columns_to_keep]
 
-    return voteview
+    return legislators
 
 
 
@@ -55,6 +51,8 @@ def clean_speakers(speech_dta, levenshtein_threshold=2):
     # generate a column `position` with values 2-5 based on whether they are:
     # speaker, vice-president, president pro tempore, presiding officer
     speech_dta['position'] = 0
+    # add gender column
+    speech_dta['gender'] = ''
 
     def fuzzy_match(text, target, threshold):
         # convert input to string, handling NaN and other types
@@ -84,6 +82,12 @@ def clean_speakers(speech_dta, levenshtein_threshold=2):
 
     # then, anything that contains presiding 
     speech_dta.loc[speech_dta['speaker_name'].apply(lambda x: fuzzy_match(x, 'Presiding Officer', levenshtein_threshold)), 'position'] = 5
+
+    # gender is "M" if contains substring "Mr." or "mr."
+    # gender is "M" if contains substring "Mrs." or "mrs." or "Ms." or "ms."
+    speech_dta.loc[speech_dta['speaker_name'].apply(lambda x: fuzzy_match(x, 'Mr.', levenshtein_threshold)), 'gender'] = 'M'
+    speech_dta.loc[speech_dta['speaker_name'].apply(lambda x: fuzzy_match(x, 'Mrs.', levenshtein_threshold)), 'gender'] = 'F'
+    speech_dta.loc[speech_dta['speaker_name'].apply(lambda x: fuzzy_match(x, 'Ms.', levenshtein_threshold)), 'gender'] = 'F'
 
     # get list of actual speakers. strip punctuation
     def extract_speaker(text):
@@ -124,7 +128,7 @@ def clean_speakers(speech_dta, levenshtein_threshold=2):
 
 
 # get speakers associated with each speech
-def get_speakers(voteview,speech_dta,congress,algorithm):
+def get_speakers(legislators,speech_dta,congress,algorithm):
     np.random.seed(1)
 
     # step 0: drop anything with position = 0
@@ -132,12 +136,12 @@ def get_speakers(voteview,speech_dta,congress,algorithm):
     speech_dta = speech_dta[speech_dta['position'] != 0].reset_index(drop=True)
 
     # step 1: block match on session of Congress
-    # only keep rows in `voteview` that exactly match `congress`
-    voteview = voteview[voteview['congress'] == congress].reset_index(drop=True)
-    voteview = voteview.drop_duplicates(subset='icpsr', keep='first')
+    # only keep rows in `legislators` that exactly match `congress`
+    legislators = legislators[legislators['congress'] == congress].reset_index(drop=True)
+    legislators = legislators.drop_duplicates(subset='icpsr', keep='first')
 
     # step 2: match to state
-    # voteview `state_abbrev` is the two letter abbrevation
+    # legislators `state_abbrev` is the two letter abbrevation
     # speech_dta `state` contains the state (if exists), but often is truncated
         # for example, "New Yo" instead of "New York" or "Cal" instead of "California"
         # add state_abbrev as a column to speech_dta with the closest match
@@ -170,7 +174,7 @@ def get_speakers(voteview,speech_dta,congress,algorithm):
     # sum([e is None for e in exact_matches])
 
     # step 3: get exact matches
-    # for each row in speech_dta, see if there is exactly 1 row in voteview `lastname` 
+    # for each row in speech_dta, see if there is exactly 1 row in legislators `lastname` 
     # that matches this row's `speaker`
     # if no matches, skip. 
     # if multiple matches, see if exactly 1 match when also including state_abbrev
@@ -179,7 +183,7 @@ def get_speakers(voteview,speech_dta,congress,algorithm):
         # TODO: decide if this can be improved
 
     def exact_match(row):
-        matches = voteview[voteview['lastname'] == row['speaker']]
+        matches = legislators[legislators['lastname'] == row['speaker']]
         if len(matches) == 1:
             return matches.iloc[0].to_dict()
         elif len(matches) > 1:
@@ -187,7 +191,13 @@ def get_speakers(voteview,speech_dta,congress,algorithm):
             if len(state_matches) == 1:
                 return state_matches.iloc[0].to_dict()
             elif len(state_matches) > 0:
-                return state_matches.iloc[np.random.randint(len(state_matches))].to_dict()
+                # match on gender
+                gender_matches = state_matches[state_matches['gender'] == row['gender']]
+                if len(gender_matches) == 1:
+                    return gender_matches.iloc[0].to_dict()
+                else:
+                    return state_matches.iloc[np.random.randint(len(state_matches))].to_dict()
+                
         return {}  # return empty dict if no match
 
     exact_matches = speech_dta.apply(exact_match, axis=1)
@@ -224,14 +234,14 @@ def get_speakers(voteview,speech_dta,congress,algorithm):
         # Convert row['speaker'] to string, handling NaN
         speaker = str(row['speaker']) if pd.notna(row['speaker']) else ''
         
-        # Filter voteview based on state if available
+        # Filter legislators based on state if available
         if row['state_abbrev']:
-            state_filtered_voteview = voteview[voteview['state_abbrev'] == row['state_abbrev']]
+            state_filtered_legislators = legislators[legislators['state_abbrev'] == row['state_abbrev']]
         else:
-            state_filtered_voteview = voteview
+            state_filtered_legislators = legislators
         
         if speaker:
-            for _, v_row in state_filtered_voteview.iterrows():
+            for _, v_row in state_filtered_legislators.iterrows():
                 score = fuzz.ratio(row['speaker'], v_row['lastname'])
                 if score > best_score and score >= (100 - threshold * 10):
                     best_score = score
@@ -248,7 +258,7 @@ def get_speakers(voteview,speech_dta,congress,algorithm):
             match = fuzzy_match(row, threshold)
             if match is not None:
                 return pd.Series(match)
-            return pd.Series([None] * len(voteview.columns), index=voteview.columns)
+            return pd.Series([None] * len(legislators.columns), index=legislators.columns)
 
         # First round of matching with threshold 1
         matched_1 = unmatched.apply(lambda row: fuzzy_match_wrapper(row, 1), axis=1)
@@ -271,14 +281,14 @@ def get_speakers(voteview,speech_dta,congress,algorithm):
         pass
 
 
-    # step 5: conduct merge of voteview with speech_dta
+    # step 5: conduct merge of legislators with speech_dta
 
     # ensure 'icpsr' is of the same type in both DataFrames
     speech_dta['icpsr'] = pd.to_numeric(speech_dta['icpsr'], errors='coerce').astype('Int64')
-    voteview['icpsr'] = pd.to_numeric(voteview['icpsr'], errors='coerce').astype('Int64')
+    legislators['icpsr'] = pd.to_numeric(legislators['icpsr'], errors='coerce').astype('Int64')
 
     # merge
-    merged_dta = speech_dta.merge(voteview, on='icpsr', how='left', suffixes=('', '_voteview'))
+    merged_dta = speech_dta.merge(legislators, on='icpsr', how='left', suffixes=('', '_legislators'))
 
     # merge statistics
     print(f"Rows in speech_dta: {len(speech_dta)}")
@@ -291,14 +301,14 @@ def get_speakers(voteview,speech_dta,congress,algorithm):
 
 
 
-voteview = load_voteview()
+legislators = load_legislators()
 
 filename = 'speakers_1882_pt1.csv'
 # just do one for now, make it dynamic/check progress later
 speech_dta, congress = load_dta(filename)
 
 speech_dta = clean_speakers(speech_dta)
-merged_dta = get_speakers(voteview,speech_dta, congress,algorithm='baseline')
+merged_dta = get_speakers(legislators,speech_dta, congress,algorithm='baseline')
 ## TODO: fix many to 1
 
 ## verify that fuzzy matches are reasonable, not just collisions
