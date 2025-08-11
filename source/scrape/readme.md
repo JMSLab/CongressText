@@ -14,4 +14,20 @@ Direct links from the GPO are available between Volume 1 (43rd Congress, Special
 
 >  Govinfo currently contains Congressional Record volumes from 140 (1994) to the present. The current year's Congressional Record database is usually updated daily by 11 a.m., except when a late adjournment delays production of the issue. Documents are available in ASCII text and Adobe Portable Document Format (PDF). The date of the publication refers to the date the proceedings were recorded, not necessarily the date of delivery.
 
-Both raw text and PDFs are obtained from [this website](https://govinfo.gov) by (automated) download between July 8, 2025 and TODO, 2025. 
+Both raw text and PDFs are obtained from [this website](https://govinfo.gov) by (automated) download between July 8, 2025 and July 31, 2025. 
+
+Direct links from the GPO are available between Volume 140 (103rd Congress, 2nd Session, 1994) up to the present day. The website hosting a directory of the daily editions is: https://www.govinfo.gov/app/collection/crec/1994/01
+
+
+### Terms of use
+
+The text of the Congressional record has been placed in the public domain under United States Code Title 17, Sections 101-105. These can be reproduced without legal restriction. For more details, see [here](https://www.govinfo.gov/about/policies#copyright).
+
+
+
+
+
+
+
+
+

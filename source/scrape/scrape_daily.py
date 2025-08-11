@@ -13,7 +13,7 @@ import shutil
 # --- SETTINGS ---
 START_DATE = datetime(1994, 1, 25)
 END_DATE = datetime(2025, 7, 2)
-RESCRAPE_EARLY = True  # <-- Set to True to force rescrape through 2006-09-22
+RESCRAPE_EARLY = True  # <-- Set to True to force rescrape
 
 DOWNLOAD_DIR = "/Users/AndrewKao/Downloads"    
 STORAGE_DIR = "/Users/AndrewKao/Documents/Grad/staffers/datastore/scrape/cr-daily"       
