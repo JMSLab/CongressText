@@ -47,8 +47,11 @@ def process_legislators(data):
                 
                 if end_date:
                     end_year = int(end_date.split('-')[0])
-                    # don't +1 because goes into next Congress
-                    end_congress = ((end_year - 1789) // 2) 
+                    if end_year > start_year:
+                        # don't +1 because goes into next Congress
+                        end_congress = ((end_year - 1789) // 2) 
+                    else:
+                        end_congress = start_congress
                 else:
                     # If no end date, assume current
                     end_congress = start_congress
