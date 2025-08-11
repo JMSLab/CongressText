@@ -16,7 +16,7 @@ Direct links from the GPO are available between Volume 1 (43rd Congress, Special
 
 Both raw text and PDFs are obtained from [this website](https://govinfo.gov) by (automated) download between July 8, 2025 and July 31, 2025. 
 
-Direct links from the GPO are available between Volume 140 (103rd Congress, 2nd Session, 1994) up to the present day. The website hosting a directory of the daily editions is: https://www.govinfo.gov/app/collection/crec/1994/01
+Direct links from the GPO are available between Volume 140 (103rd Congress, 2nd Session, 1994) up to the present day. The website hosting a directory of the daily editions is [here]( https://www.govinfo.gov/app/collection/crec/1994/01).
 
 
 ### Terms of use
