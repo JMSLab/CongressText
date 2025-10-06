@@ -14,6 +14,7 @@ module purge
 export PYTHONPATH=/n/home12/andrewkao/.conda/envs/pDL/lib/python3.10/site-packages:$PYTHONPATH
 module load python ##/3.10.12-fasrc01  
 ## module load Mambaforge/23.3.1-fasrc01   
+source "$(conda info --base)/etc/profile.d/conda.sh"
 conda deactivate
 conda activate pDL
 
