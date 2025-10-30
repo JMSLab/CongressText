@@ -19,4 +19,4 @@ conda deactivate
 conda activate pDL
 
 ## python source/inference/infer_layouts_and_text.py datastore/inference/chunk_${1}.csv
-python source/inference/infer_layouts_and_text.py datastore/inference/chunk_${1}_${2}.csv
+python source/inference/infer_layouts_and_text.py datastore/inference/chunk_new_${1}_${2}.csv
