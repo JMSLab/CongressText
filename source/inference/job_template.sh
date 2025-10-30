@@ -18,4 +18,5 @@ source "$(conda info --base)/etc/profile.d/conda.sh"
 conda deactivate
 conda activate pDL
 
-python source/inference/infer_layouts_and_text.py datastore/inference/chunk_${1}.csv
+## python source/inference/infer_layouts_and_text.py datastore/inference/chunk_${1}.csv
+python source/inference/infer_layouts_and_text.py datastore/inference/chunk_${1}_${2}.csv
