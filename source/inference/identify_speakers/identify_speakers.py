@@ -32,6 +32,25 @@ def load_legislators():
     return legislators
 
 
+def doc_to_yearpart(filename):
+    """Get year and part number from filename  """
+    year = 0
+    match = re.search(r'\d{4}', filename)
+    if match:
+        year = int(match.group())
+    else:
+        print("No four-digit sequence found.") 
+
+
+    part = 0
+    match = re.search(r'pt(\d+)', filename)
+    if match:
+        part = int(match.group(1))
+    else:
+        print("No part found found.") 
+
+    return year, part
+
 
 # get Congress speech data
 def load_dta(filename):
@@ -322,10 +341,9 @@ def main(chunk_file):
     # iterate through incomplete files
     for index, row in docs_df.iterrows():
         if row['complete'] == 0:
-            
-            file_path = os.path.join(image_dir, row['title'])
-            print(file_path)
             year, part = doc_to_yearpart(row['title'])
+            file_path = f"{inference_dir}/speakers_{year}_pt{part}.csv"
+            print(file_path)
 
             speech_dta, congress = load_dta(file_path)
 
