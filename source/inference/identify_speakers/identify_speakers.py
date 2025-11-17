@@ -340,7 +340,7 @@ def main(chunk_file):
 
     # iterate through incomplete files
     for index, row in docs_df.iterrows():
-        if row['complete'] == 0:
+        if row['complete'] == 1:
             year, part = doc_to_yearpart(row['title'])
             file_path = f"{inference_dir}/speakers_{year}_pt{part}.csv"
             print(file_path)
@@ -355,7 +355,7 @@ def main(chunk_file):
             merged_dta.to_csv(speakers_new_path, index=False)
 
             # read docs_df and update to track progress
-            docs_df.loc[index, 'complete'] = 1
+            docs_df.loc[index, 'complete'] = 2
             docs_df.to_csv(chunk_file, index=False)        
 
 
