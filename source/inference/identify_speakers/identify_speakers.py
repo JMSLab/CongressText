@@ -227,20 +227,34 @@ def get_speakers(legislators,speech_dta,congress,algorithm):
 
     exact_matches = speech_dta.apply(exact_match, axis=1)
 
-    # Convert the results to a DataFrame, replacing None with NaN
+   # Convert the results to a DataFrame
     exact_match_df = pd.DataFrame(exact_matches.tolist(), index=speech_dta.index)
-    exact_match_df = exact_match_df.map(lambda x: x if x else np.nan) # replace empty with NaN
-    exact_match_df = exact_match_df.rename(columns={'state_abbrev': 'state_abbrev_match'}) # rename overlap
 
-    # Join the results, using the original index
+    # Ensure the DF has the columns we expect, even if there were zero matches
+    if exact_match_df.empty:
+        exact_match_df = pd.DataFrame(index=speech_dta.index)
+
+    # Rename overlap and normalize empties to NaN
+    if 'state_abbrev' in exact_match_df.columns:
+        exact_match_df = exact_match_df.rename(columns={'state_abbrev': 'state_abbrev_match'})
+    for c in exact_match_df.columns:
+        exact_match_df[c] = exact_match_df[c].replace('', np.nan)
+
+    # Join the results
     speech_dta = speech_dta.join(exact_match_df, rsuffix='_match')
 
-    # Fill NaN values in the newly joined columns
-    speech_dta = speech_dta.fillna({col: '' for col in exact_match_df.columns})
+    # Make sure 'icpsr' exists for the "unmatched" filter used later
+    if 'icpsr' not in speech_dta.columns:
+        speech_dta['icpsr'] = ''
 
-    # Merge the state_abbrev columns
-    speech_dta['state_abbrev'] = speech_dta['state_abbrev'].fillna(speech_dta['state_abbrev_match'])
-    speech_dta = speech_dta.drop('state_abbrev_match', axis=1)
+    # Coalesce state_abbrev with state_abbrev_match (treat '' as missing)
+    speech_dta['state_abbrev'] = speech_dta.get('state_abbrev', pd.Series(index=speech_dta.index, dtype=object))
+    speech_dta['state_abbrev'] = speech_dta['state_abbrev'].replace('', np.nan)
+    if 'state_abbrev_match' in speech_dta.columns:
+        mask = speech_dta['state_abbrev'].isna()
+        speech_dta.loc[mask, 'state_abbrev'] = speech_dta.loc[mask, 'state_abbrev_match']
+        speech_dta.drop(columns=['state_abbrev_match'], inplace=True, errors='ignore')
+
 
     print(f"Exact matches found: {(exact_matches.apply(bool)).sum()} out of {len(speech_dta)} total rows")
 
