@@ -304,24 +304,50 @@ def get_speakers(legislators,speech_dta,congress,algorithm):
 
 
 
+# example filename: filename = 'speakers_1882_pt1.csv'
+def main(chunk_file):
+
+    docs_df = None
+
+    # if exists, load data
+    if os.path.isfile(chunk_file):
+        docs_df = pd.read_csv(chunk_file)
+    # else, raise error
+    else:
+        raise RuntimeError("List of files to process does not exist. Run identify_speakers/split_df_for_jobs.py")
+
+    # get legislator data
+    legislators = load_legislators()
+
+    # iterate through incomplete files
+    for index, row in docs_df.iterrows():
+        if row['complete'] == 0:
+            
+            file_path = os.path.join(image_dir, row['title'])
+            print(file_path)
+            year, part = doc_to_yearpart(row['title'])
+
+            speech_dta, congress = load_dta(file_path)
+
+            speech_dta = clean_speakers(speech_dta)
+            merged_dta = get_speakers(legislators,speech_dta, congress,algorithm='baseline')
 
 
-legislators = load_legislators()
-filename = 'speakers_1882_pt1.csv'
-# just do one for now, make it dynamic/check progress later
-speech_dta, congress = load_dta(filename)
+            speakers_new_path = f"{inference_dir}/identified_speakers_{year}_pt{part}.csv"
+            merged_dta.to_csv(speakers_new_path, index=False)
 
-speech_dta = clean_speakers(speech_dta)
-merged_dta = get_speakers(legislators,speech_dta, congress,algorithm='baseline')
-## TODO: fix many to 1
+            # read docs_df and update to track progress
+            docs_df.loc[index, 'complete'] = 1
+            docs_df.to_csv(chunk_file, index=False)        
 
-## verify that fuzzy matches are reasonable, not just collisions
 
-## count how many unmatched are plausibly improvable
 
 ## TODO: actual test-train set for different algorithms
 
-pdb.set_trace()
+if __name__ == "__main__":
+    chunk_file = sys.argv[1]
+    main(chunk_file)
+
 
 
 
