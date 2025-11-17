@@ -17,4 +17,4 @@ module load python ##/3.10.12-fasrc01
 conda deactivate
 conda activate pDL
 
-python source/inference/identify_speakers/identify_speakers.py datastore/inference/chunk_new_${1}_${2}.csv
+python source/inference/identify_speakers/identify_speakers.py datastore/inference/chunk_speaker_${1}.csv
