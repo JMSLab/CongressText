@@ -55,7 +55,7 @@ def doc_to_yearpart(filename):
 
 # get Congress speech data
 def load_dta(filename):
-    speech_dta = pd.read_csv(inference_dir + '/' + filename)
+    speech_dta = pd.read_csv(filename)
 
     # extract year, while filename formats are like 'speakers_1882_pt1.csv'
     year_match = re.search(r'(\d{4})', filename)
