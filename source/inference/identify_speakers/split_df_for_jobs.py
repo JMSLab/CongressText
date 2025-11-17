@@ -16,6 +16,9 @@ if not os.path.isfile(docsdf_path):
 # Load the document list
 df = pd.read_csv(f'{inference_dir}/docs.csv')
 
+# Only documents where first stage inference has completed (speakers collected)
+files_to_process = df[df['complete'] == 1]
+
 # Divide the list into chunks
 num_chunks = 100  # Adjust based on the number of available CPUs/nodes
 chunks = np.array_split(files_to_process, num_chunks)
