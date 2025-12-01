@@ -27,7 +27,7 @@ def load_legislators():
     legislators['firstname'] = legislators['firstname'].str.replace('’', "'", regex=False)
     legislators['nickname'] = legislators['nickname'].str.replace('’', "'", regex=False)
 
-    columns_to_keep = ['lastname', 'firstname', 'nickname', 'chamber', 'congress', 'icpsr', 'district_code', 'state_abbrev']
+    columns_to_keep = ['lastname', 'firstname', 'nickname', 'chamber', 'congress', 'icpsr', 'district_code', 'state_abbrev', 'gender']
     legislators = legislators[columns_to_keep]
 
     return legislators
