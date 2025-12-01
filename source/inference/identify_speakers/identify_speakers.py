@@ -136,13 +136,20 @@ def clean_speakers(speech_dta, levenshtein_threshold=2):
 
     # for those which position == 1 , extract new column state, where possible
     def extract_state(text):
-        # convert input to string, handling NaN and other types
         if pd.isna(text):
             return None
-        text = str(text)
+        s = str(text)
 
-        match = re.search(r'of\s+([A-Za-z\s]+)(?=\s+State)', text)
-        return match.group(1).strip() if match else None
+        # capture the chunk after "of ..." up to punctuation/end
+        m = re.search(r'\bof\s+(?:the\s+)?([A-Za-z.\-\s]+?)(?=[,:;.()\[\]]|$)', s, flags=re.IGNORECASE)
+        if not m:
+            return None
+        raw = m.group(1).strip()
+
+        # normalize spacing/punctuation
+        raw = re.sub(r'\s+', ' ', raw)
+        return raw
+
 
     speech_dta.loc[speech_dta['position'] == 1, 'state'] = speech_dta.loc[speech_dta['position'] == 1, 'speaker_name'].apply(extract_state)
 
