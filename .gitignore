@@ -2,6 +2,8 @@
 /datastore
 /temp
 /models
+/source/inference/congressional-record/tests
+source/inference/congressional-record/.venv
 *.pyc
 *.lyx~
 *.lyx#
