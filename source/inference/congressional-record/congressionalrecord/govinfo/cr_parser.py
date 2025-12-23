@@ -161,6 +161,32 @@ class ParseCRFile(object):
                 self.speakers[mbr.find("name", {"type": "parsed"}).string] = (
                     self.people_helper(mbr)
                 )
+                
+    def find_people(self):
+        """
+        Populate self.speakers with entries from <congmember> tags.
+
+        Safely handles cases where <name type="parsed"> is missing by:
+        - falling back to any <name> tag, if present
+        - otherwise skipping that member instead of raising an exception
+        """
+        mbrs = self.doc_ref.find_all("congmember")
+        if not mbrs:
+            return
+
+        for mbr in mbrs:
+            # Try the original, expected tag first
+            name_tag = mbr.find("name", {"type": "parsed"})
+
+            # If that's missing, fall back to any <name> tag
+            if name_tag is None or not name_tag.string:
+                name_tag = mbr.find("name")
+                if name_tag is None or not name_tag.string:
+                    # No usable name on this member; skip it
+                    continue
+
+            name = name_tag.string
+            self.speakers[name] = self.people_helper(mbr)
 
     def find_related_bills(self):
         related_bills = self.doc_ref.find_all("bill")

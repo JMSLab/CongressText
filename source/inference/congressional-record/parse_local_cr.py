@@ -54,7 +54,12 @@ def parse_zip(zip_path: Path, out_root: Path) -> None:
             continue
 
         logging.info("Parsing %s", parse_path)
-        crfile = ParseCRFile(str(parse_path), crdir)
+        try:
+            crfile = ParseCRFile(str(parse_path), crdir)
+        except Exception as e:
+            logging.exception("Failed to parse %s: %s", parse_path, e)
+            # Optionally keep a log of failed files per day
+            continue
 
         out_name = Path(fname).stem + ".json"
         out_path = json_dir / out_name
