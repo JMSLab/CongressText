@@ -6,10 +6,9 @@
 #SBATCH --time=500:00:00  # check periodically, about 3 weeks 
 #SBATCH --mem=100000
 #SBATCH --mail-type=END,FAIL,REQUEUE,TIME_LIMIT
-## if using SLURM, customize the following:
-#SBATCH --account=jshapiro_lab
-#SBATCH --partition=jshapiro
-#SBATCH --mail-user=andrewkao@g.harvard.edu
+#SBATCH --account=ACCOUNT_NAME
+#SBATCH --partition=PARTITION_NAME
+#SBATCH --mail-user=USER@DOMAIN.EDU
 
 CONDA_ENV_NAME="${CONDA_ENV_NAME:-pDL}"
 
