@@ -1,7 +1,0 @@
-#!/bin/bash
-
-## over years
-
-for i in $(seq 1994 2025); do
-    sbatch source/inference/congressional-record/job_template.sh "$i"
-done

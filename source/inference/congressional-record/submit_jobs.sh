@@ -6,3 +6,4 @@
 for i in $(seq 1994 2025); do
     sbatch job_template.sh "$i"
 done
+

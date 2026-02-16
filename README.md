@@ -5,11 +5,7 @@ This repository is built from [`JMSLab/Template`](https://github.com/JMSLab/Temp
 The datastore is [`CongressText`](https://drive.google.com/drive/u/1/folders/0ALDmSBTLfB78Uk9PVA).
 
 ### Workflow summary
-This repository produces text data containing the speeches contained in the Congressional Record. To accomplish this, we use the following procedure:
-1. Scrape the Congress.gov website for PDF scans of the Congressional Record
-2. [Manually label](./source/label/README.md) the layouts for a random sample of PDFs using LabelStudio
-3. Fine-tune a RCNN model to automatically detect layouts using LayoutParser
-4. Detect layouts for all PDFs using this model
-5. OCR to obtain text data for all PDFs
-6. Clean text data into final speech data
-
+This folder produces text data containing the speeches contained in the Daily Congressional Record. To accomplish this, we use the following procedure:
+1. Scrape the Congress.gov website for HTML and PDF scans of the Daily Congressional Record
+2. Use the [congressional-record](https://github.com/unitedstates/congressional-record/tree/main) repository to parse the Congressional Record to JSON
+3. Convert the JSON to our historical schema
