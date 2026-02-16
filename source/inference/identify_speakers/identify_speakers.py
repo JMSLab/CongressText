@@ -11,10 +11,8 @@ import sys
 # always block merge on year
 # test a few different methods, potentially combine
 
-inference_dir = 'datastore/inference'
-
 # returns ground truth data
-def load_legislators():
+def load_legislators(inference_dir):
     legislators = pd.read_csv(inference_dir + "/congress_legislators.csv")
 
     # text to lower case
@@ -346,7 +344,7 @@ def get_speakers(legislators,speech_dta,congress,algorithm):
 
 
 # example filename: filename = 'speakers_1882_pt1.csv'
-def main(chunk_file):
+def main(chunk_file,inference_dir):
 
     docs_df = None
 
@@ -358,13 +356,13 @@ def main(chunk_file):
         raise RuntimeError("List of files to process does not exist. Run identify_speakers/split_df_for_jobs.py")
 
     # get legislator data
-    legislators = load_legislators()
+    legislators = load_legislators(inference_dir)
 
     # iterate through incomplete files
     for index, row in docs_df.iterrows():
         if row['complete'] == 1:
             year, part = doc_to_yearpart(row['title'])
-            file_path = f"{inference_dir}/speakers_{year}_pt{part}.csv"
+            file_path = os.path.join(inference_dir, row["title"])
             print(file_path)
 
             speech_dta, congress = load_dta(file_path)
@@ -373,7 +371,7 @@ def main(chunk_file):
             merged_dta = get_speakers(legislators,speech_dta, congress,algorithm='baseline')
 
 
-            speakers_new_path = f"{inference_dir}/identified_speakers_{year}_pt{part}.csv"
+            speakers_new_path = os.path.join(os.path.dirname(file_path), f"identified_speakers_{year}_pt{part}.csv")
             merged_dta.to_csv(speakers_new_path, index=False)
 
             # read docs_df and update to track progress
@@ -386,7 +384,8 @@ def main(chunk_file):
 
 if __name__ == "__main__":
     chunk_file = sys.argv[1]
-    main(chunk_file)
+    inference_dir = sys.argv[2]
+    main(chunk_file,inference_dir)
 
 
 

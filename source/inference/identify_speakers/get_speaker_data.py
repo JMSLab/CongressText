@@ -122,3 +122,4 @@ all_csv = pd.concat([current_csv, historical_csv])
 
 # Save to CSV
 all_csv.to_csv("datastore/inference/congress_legislators.csv", index=False)
+all_csv.to_csv("datastore/inference/daily_harmonized/congress_legislators.csv", index=False)

@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""
+Creates/updates a docs.csv for a "daily_harmonized" inference directory by scanning
+for speakers_YYYY_ptPART.csv files, preserving progress if docs.csv already exists,
+and then writes chunk_speaker_{i}.csv files for rows with complete==1.
+
+Conventions:
+- title = relative path from inference_dir, e.g. "2022/speakers_2022_pt20220411.csv"
+- complete:
+    1 = ready for speaker identification
+    2 = identified (or identified output already exists)
+"""
+
+import argparse
+import re
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+SPEAKERS_RE = re.compile(r"^speakers_(\d{4})_pt(\d+)\.csv$")
+
+
+def build_docs_df(inference_dir: Path) -> pd.DataFrame:
+    docs_path = inference_dir / "docs.csv"
+
+    old = None
+    if docs_path.exists():
+        old = pd.read_csv(docs_path)
+        if "title" in old.columns:
+            old = old.set_index("title", drop=False)
+        else:
+            old = None
+
+    rows = []
+    for p in inference_dir.rglob("speakers_*.csv"):
+        m = SPEAKERS_RE.match(p.name)
+        if not m:
+            continue
+
+        year = int(m.group(1))
+        part = int(m.group(2))
+
+        rel_title = p.relative_to(inference_dir).as_posix()
+
+        # If identified output exists alongside speakers_*.csv, treat as complete==2
+        identified_name = f"identified_speakers_{year}_pt{part}.csv"
+        identified_exists = (p.parent / identified_name).exists()
+
+        if old is not None and rel_title in old.index:
+            try:
+                complete = int(old.loc[rel_title, "complete"])
+            except Exception:
+                complete = 1
+            if identified_exists:
+                complete = 2
+        else:
+            complete = 2 if identified_exists else 1
+
+        rows.append({"title": rel_title, "complete": complete})
+
+    df = pd.DataFrame(rows).drop_duplicates(subset=["title"])
+    df = df.sort_values("title").reset_index(drop=True)
+    return df
+
+
+def write_chunks(
+    inference_dir: Path,
+    docs_df: pd.DataFrame,
+    num_chunks: int,
+    overwrite_chunks: bool,
+    keep_empty_chunks: bool,
+) -> None:
+    if overwrite_chunks:
+        for p in inference_dir.glob("chunk_speaker_*.csv"):
+            p.unlink()
+
+    to_process = docs_df[docs_df["complete"] == 1].reset_index(drop=True)
+
+    if len(to_process) == 0:
+        print("No files with complete==1; no chunks written.")
+        return
+
+    # Split integer row positions, then slice with iloc to keep DataFrame type
+    idx_chunks = np.array_split(np.arange(len(to_process)), num_chunks)
+
+    written = 0
+    for i, idx in enumerate(idx_chunks):
+        if len(idx) == 0 and not keep_empty_chunks:
+            continue
+        chunk_df = to_process.iloc[idx].copy()
+        chunk_path = inference_dir / f"chunk_speaker_{i}.csv"
+        chunk_df.to_csv(chunk_path, index=False)
+        written += 1
+
+    print(f"Speakers files needing identification (complete==1): {len(to_process)}")
+    print(f"Wrote {written} chunk file(s) under {inference_dir}")
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument(
+        "--inference-dir",
+        required=True,
+        help="Root dir containing daily_harmonized outputs (and where docs.csv/chunks are written).",
+    )
+    ap.add_argument("--num-chunks", type=int, default=100)
+    ap.add_argument(
+        "--overwrite-chunks",
+        action="store_true",
+        help="Delete existing chunk_speaker_*.csv before writing new ones.",
+    )
+    ap.add_argument(
+        "--keep-empty-chunks",
+        action="store_true",
+        help="If set, write empty chunk CSVs as well (default: skip empties).",
+    )
+    args = ap.parse_args()
+
+    inference_dir = Path(args.inference_dir).resolve()
+    inference_dir.mkdir(parents=True, exist_ok=True)
+
+    docs_df = build_docs_df(inference_dir)
+    docs_path = inference_dir / "docs.csv"
+    docs_df.to_csv(docs_path, index=False)
+    print(f"Wrote/updated {len(docs_df)} rows -> {docs_path}")
+
+    write_chunks(
+        inference_dir=inference_dir,
+        docs_df=docs_df,
+        num_chunks=args.num_chunks,
+        overwrite_chunks=args.overwrite_chunks,
+        keep_empty_chunks=args.keep_empty_chunks,
+    )
+
+
+if __name__ == "__main__":
+    main()
