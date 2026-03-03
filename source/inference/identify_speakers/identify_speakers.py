@@ -380,7 +380,6 @@ def main(chunk_file,inference_dir):
 
 
 
-## TODO: actual test-train set for different algorithms
 
 if __name__ == "__main__":
     chunk_file = sys.argv[1]
