@@ -7,9 +7,6 @@ import numpy as np
 import pandas as pd
 
 
-# ----------------------------
-# Config
-# ----------------------------
 
 @dataclass(frozen=True)
 class PathsConfig:
@@ -33,9 +30,7 @@ class PathsConfig:
         return os.path.join(self.inference_dir, "speakers.csv")
 
 
-# ----------------------------
-# Discovery + parsing
-# ----------------------------
+
 
 PDF_PATTERN = re.compile(r"GPO-CRECB-(\d{4})-pt(\d{1,2})(-v\d+)?\.pdf")
 
@@ -91,9 +86,6 @@ def select_latest_version_per_year_part(
     return [info[0] for info in final_docs.values()]
 
 
-# ----------------------------
-# DataFrame constructors
-# ----------------------------
 
 def build_docs_df(filenames: List[str]) -> pd.DataFrame:
     """Initialize docs progress dataframe."""
@@ -138,9 +130,7 @@ def initialize_progress_dataframes(image_dir: str) -> Tuple[pd.DataFrame, pd.Dat
     return docs_df, sections_df, speeches_df, speakers_df
 
 
-# ----------------------------
-# Persistence
-# ----------------------------
+
 
 def ensure_inference_dir_exists(inference_dir: str) -> None:
     os.makedirs(inference_dir, exist_ok=True)
@@ -160,9 +150,7 @@ def write_initial_csvs_if_missing(cfg: PathsConfig) -> None:
         speakers_df.to_csv(cfg.speakers_path, index=False)
 
 
-# ----------------------------
-# Chunking
-# ----------------------------
+
 
 def load_docs_df(cfg: PathsConfig) -> pd.DataFrame:
     return pd.read_csv(cfg.docs_path)
@@ -182,9 +170,7 @@ def write_chunks(chunks: List[pd.DataFrame], inference_dir: str, prefix: str = "
         chunk.to_csv(os.path.join(inference_dir, f"{prefix}{i}.csv"), index=False)
 
 
-# ----------------------------
-# Main
-# ----------------------------
+
 
 def main(num_chunks: int = 10) -> None:
     cfg = PathsConfig()

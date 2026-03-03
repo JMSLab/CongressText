@@ -19,9 +19,7 @@ from helpers import new_paragraph_df, pdf_to_cv2_images, doc_to_yearpart
 from helpers import infer_img2txt, get_pdf_page_count, convert_pdf_in_chunks
 
 
-# ----------------------------
-# Environment / engine setup
-# ----------------------------
+
 
 def setup_tesseract(home_dir: Optional[str] = None) -> None:
     """Configure tesseract binary path and tessdata env vars"""
@@ -50,9 +48,8 @@ def build_ocr_agent(languages: str = "eng") -> lp.TesseractAgent:
     return lp.TesseractAgent(languages=languages)
 
 
-# ----------------------------
-# Data / config containers
-# ----------------------------
+
+
 
 @dataclass(frozen=True)
 class InferenceConfig:
@@ -92,9 +89,8 @@ class InferenceContext:
     state: InferenceState
 
 
-# ----------------------------
-# Layout processing
-# ----------------------------
+
+
 
 def should_process_page(layout: lp.Layout) -> bool:
     """If any skip block (type==2) exists, skip the whole page."""
@@ -239,9 +235,8 @@ def ocr_block_image(ctx: InferenceContext, block, page_image: np.ndarray):
     return infer_img2txt(ctx.cfg.engine_type, ctx.engines.ocr_agent, segment_image)
 
 
-# ----------------------------
-# IO / progress tracking
-# ----------------------------
+
+
 
 def build_master_paths(cfg: InferenceConfig) -> Dict[str, str]:
     """Dictionary of file paths."""
@@ -313,9 +308,8 @@ def save_per_doc_outputs(
     paragraphs_df.to_csv(paragraphsdf_path, index=False)
 
 
-# ----------------------------
-# Document processing
-# ----------------------------
+
+
 
 @dataclass
 class DocumentCounters:
@@ -545,9 +539,8 @@ def process_document(ctx: InferenceContext, chunk_file: str, doc_index: int, doc
     )
 
 
-# ----------------------------
-# Main entrypoint
-# ----------------------------
+
+
 
 def build_context(cfg: Optional[InferenceConfig], chunk_file: str) -> InferenceContext:
     if cfg is None:
