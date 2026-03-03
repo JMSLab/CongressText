@@ -102,9 +102,8 @@ def split_title_heading_body(text: str) -> Tuple[str, str]:
     return (heading, body)
 
 
-# ----------------------------
-# Event stream from one JSON file
-# ----------------------------
+
+
 
 def iter_daily_blocks(crdoc: dict) -> Iterator[dict]:
     """

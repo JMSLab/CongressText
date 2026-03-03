@@ -1,3 +1,6 @@
+This is a modified version of the code from the [congressional-record](https://github.com/unitedstates/congressional-record/) repository. We adapt parsing so that it matches our historical congressional record data schema. Modification of the original code is permitted under the [original license](https://github.com/unitedstates/congressional-record/blob/ec0850412acffd0fc2dc6ed79fbd376e4699439d/LICENSE).
+
+
 [![Build Status](https://github.com/unitedstates/congressional-record/actions/workflows/ci.yml/badge.svg)](https://github.com/unitedstates/congressional-record/actions/workflows/ci.yml)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)

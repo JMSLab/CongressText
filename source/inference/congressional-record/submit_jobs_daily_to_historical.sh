@@ -1,5 +1,6 @@
 #!/bin/bash                                                                                                                           
 ## must be run from the congressional-record repo root with venv congressDL activated                                                
+## requires parse_local_cr.py to have parsed all relevant years
 
 ## over years                                                                                                                         
 
