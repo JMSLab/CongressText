@@ -1,0 +1,12 @@
+File: datastore/scrape/cr-bound/paragraphs_1873_pt1.csv
+
+MD5 hash: d41d8cd98f00b204e9800998ecf8427e
+
+Keys: paragraph_id 
+
+                   type count unique  top freq
+speech_id        object     0      0  NaN  NaN
+paragraph_text   object     0      0  NaN  NaN
+paragraph_order  object     0      0  NaN  NaN
+paragraph_id     object     0      0  NaN  NaN
+

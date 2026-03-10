@@ -1,0 +1,10 @@
+File: datastore/inference/speakers.csv
+
+MD5 hash: d41d8cd98f00b204e9800998ecf8427e
+
+Keys: speaker_id 
+
+                type count unique  top freq
+speaker_id    object     0      0  NaN  NaN
+speaker_name  object     0      0  NaN  NaN
+
