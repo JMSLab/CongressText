@@ -4,17 +4,19 @@
 #SBATCH --error=datastore/inference/error_%j.txt
 #SBATCH --ntasks=1
 #SBATCH --time=500:00:00  # check periodically, about 3 weeks 
-#SBATCH --account=jshapiro_lab
-#SBATCH --partition=jshapiro
 #SBATCH --mem=100000
 #SBATCH --mail-type=END,FAIL,REQUEUE,TIME_LIMIT
-#SBATCH --mail-user=andrewkao@g.harvard.edu
+#SBATCH --account=ACCOUNT_NAME
+#SBATCH --partition=PARTITION_NAME
+#SBATCH --mail-user=USER@DOMAIN.EDU
+
+CONDA_ENV_NAME="${CONDA_ENV_NAME:-pDL}"
 
 module purge
-export PYTHONPATH=/n/home12/andrewkao/.conda/envs/pDL/lib/python3.10/site-packages:$PYTHONPATH
-module load python ##/3.10.12-fasrc01  
-## module load Mambaforge/23.3.1-fasrc01   
+module load python 
+source "$(conda info --base)/etc/profile.d/conda.sh"
 conda deactivate
-conda activate pDL
+conda activate "${CONDA_ENV_NAME}"
 
+# Usage: sbatch job_template.sh <arg1>
 python source/inference/infer_layouts_and_text.py datastore/inference/chunk_${1}.csv
