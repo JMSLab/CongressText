@@ -1,0 +1,13 @@
+File: datastore/inference/docs.csv
+
+MD5 hash: 62ea6eada825b5e9a70c7278357e816d
+
+Keys: title 
+
+                type   count    mean      std  min  25%  50%  75%    max
+title         object     NaN     NaN      NaN  NaN  NaN  NaN  NaN    NaN
+complete       int64  1978.0  0.0005   0.0225  0.0  0.0  0.0  0.0    1.0
+section_id     int64  1978.0  0.0202   0.8994  0.0  0.0  0.0  0.0   40.0
+speech_id      int64  1978.0  0.1517   6.7454  0.0  0.0  0.0  0.0  300.0
+paragraph_id   int64  1978.0  0.2543  11.3098  0.0  0.0  0.0  0.0  503.0
+
