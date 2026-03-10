@@ -17,3 +17,4 @@ nltk==3.6.7
 label-studio-tools>=0.0.3
 ujson
 ijson~=3.2.0.post0
+-e git+https://github.com/unitedstates/congressional-record.git@ec0850412acffd0fc2dc6ed79fbd376e4699439d#egg=congressionalrecord
