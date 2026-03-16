@@ -1,125 +1,188 @@
-import requests, yaml
+from pathlib import Path
+
 import pandas as pd
+import requests
+import yaml
 
-current_URL = "https://unitedstates.github.io/congress-legislators/legislators-current.yaml"
-historical_URL = "https://unitedstates.github.io/congress-legislators/legislators-historical.yaml"
+CURRENT_URL = "https://unitedstates.github.io/congress-legislators/legislators-current.yaml"
+HISTORICAL_URL = "https://unitedstates.github.io/congress-legislators/legislators-historical.yaml"
 
-def read_yaml(url):
+OUTPUT_PATHS = [
+    "datastore/inference/congress_legislators.csv",
+    "datastore/inference/daily_harmonized/congress_legislators.csv",
+]
+
+
+def read_yaml(url: str) -> list[dict]:
     response = requests.get(url, timeout=30)
+    response.raise_for_status()
     text = response.content.decode("utf-8", errors="replace")
-    data = yaml.safe_load(text)
-    return data
+    return yaml.safe_load(text)
 
-# Get current legislators
-current_data = read_yaml(current_URL)
-# Get historical legislators
-historical_data = read_yaml(historical_URL)
 
-# Convert YAML to pandas df
-# Each row is a legislator - session of Congress
-# extract firstname, lastname, nickname, chamber, congress, icpsr, district_code, state_abbrev
-# also collect leadership roles
+def congress_from_year(year: int) -> int:
+    return ((year - 1789) // 2) + 1
 
-def process_legislators(data):
+
+def get_term_congress_range(term: dict) -> tuple[int, int] | None:
+    start_date = term.get("start")
+    end_date = term.get("end")
+
+    if not start_date:
+        return None
+
+    start_year = int(start_date.split("-")[0])
+    start_congress = congress_from_year(start_year)
+
+    if not end_date:
+        return start_congress, start_congress
+
+    end_year = int(end_date.split("-")[0])
+    end_congress = ((end_year - 1789) // 2) if end_year > start_year else start_congress
+
+    return start_congress, end_congress
+
+
+def normalize_chamber(term_type: str | None) -> str | None:
+    chamber_map = {
+        "rep": "house",
+        "sen": "senate",
+    }
+    return chamber_map.get(term_type, term_type)
+
+
+def make_district_code(state_abbrev: str | None, district: int | None) -> str | None:
+    if not state_abbrev:
+        return None
+    if district is None:
+        return state_abbrev
+    return f"{state_abbrev}{district:02d}"
+
+
+def congress_date_range(congress: int) -> tuple[str, str]:
+    start_year = 1789 + (congress - 1) * 2
+    end_year = start_year + 1
+    return f"{start_year}-01-03", f"{end_year}-12-31"
+
+
+def leadership_roles_for_congress(
+    leadership_roles: list[dict],
+    chamber: str | None,
+    congress: int,
+) -> str:
+    congress_start_date, congress_end_date = congress_date_range(congress)
+    titles = []
+
+    for role in leadership_roles:
+        role_start = role.get("start")
+        role_end = role.get("end") or "9999-12-31"
+        role_chamber = role.get("chamber")
+
+        overlaps_congress = role_start and role_start <= congress_end_date and role_end >= congress_start_date
+        chamber_matches = role_chamber == chamber or role_chamber is None
+
+        if overlaps_congress and chamber_matches:
+            titles.append(role.get("title", ""))
+
+    return "/".join(titles)
+
+
+def extract_legislator_metadata(legislator: dict) -> dict:
+    name = legislator.get("name", {})
+    bio = legislator.get("bio", {})
+    ids = legislator.get("id", {})
+
+    return {
+        "first_name": name.get("first"),
+        "last_name": name.get("last"),
+        "nickname": name.get("nickname"),
+        "icpsr": ids.get("icpsr"),
+        "gender": bio.get("gender"),
+    }
+
+
+def build_row(
+    metadata: dict,
+    chamber: str | None,
+    congress: int,
+    state_abbrev: str | None,
+    district_code: str | None,
+    leadership_roles: str,
+) -> dict:
+    return {
+        "first_name": metadata["first_name"],
+        "last_name": metadata["last_name"],
+        "nickname": metadata["nickname"],
+        "chamber": chamber,
+        "congress": congress,
+        "icpsr": metadata["icpsr"],
+        "district_code": district_code,
+        "state_abbrev": state_abbrev,
+        "leadership_roles": leadership_roles,
+        "gender": metadata["gender"],
+    }
+
+
+def process_legislator(legislator: dict) -> list[dict]:
     rows = []
-    
+    metadata = extract_legislator_metadata(legislator)
+    leadership_roles = legislator.get("leadership_roles", [])
+
+    for term in legislator.get("terms", []):
+        congress_range = get_term_congress_range(term)
+        if congress_range is None:
+            continue
+
+        start_congress, end_congress = congress_range
+        chamber = normalize_chamber(term.get("type"))
+        state_abbrev = term.get("state")
+        district = term.get("district")
+        district_code = make_district_code(state_abbrev, district)
+
+        for congress in range(start_congress, end_congress + 1):
+            leadership_str = leadership_roles_for_congress(
+                leadership_roles=leadership_roles,
+                chamber=chamber,
+                congress=congress,
+            )
+            rows.append(
+                build_row(
+                    metadata=metadata,
+                    chamber=chamber,
+                    congress=congress,
+                    state_abbrev=state_abbrev,
+                    district_code=district_code,
+                    leadership_roles=leadership_str,
+                )
+            )
+
+    return rows
+
+
+def process_legislators(data: list[dict]) -> pd.DataFrame:
+    rows = []
     for legislator in data:
-        # Extract basic info
-        icpsr = legislator.get('id', {}).get('icpsr')
-        name = legislator.get('name', {})
-        first_name = name.get('first')
-        last_name = name.get('last')
-        nickname = name.get('nickname')
-        gender = legislator.get('bio', {}).get('gender')
-        
-        # Process leadership roles
-        leadership_roles = legislator.get('leadership_roles', [])
-        
-        # Process each term
-        terms = legislator.get('terms', [])
-        for term in terms:
-            # Calculate congress number range from start and end dates
-            start_date = term.get('start')
-            end_date = term.get('end')
-            if start_date:
-                start_year = int(start_date.split('-')[0])
-                start_congress = ((start_year - 1789) // 2) + 1
-                
-                if end_date:
-                    end_year = int(end_date.split('-')[0])
-                    if end_year > start_year:
-                        # don't +1 because goes into next Congress
-                        end_congress = ((end_year - 1789) // 2) 
-                    else:
-                        end_congress = start_congress
-                else:
-                    # If no end date, assume current
-                    end_congress = start_congress
-            else:
-                continue  # Skip if no start date
-                
-            # Determine chamber
-            term_type = term.get('type')
-            if term_type == 'rep':
-                chamber = 'house'
-            elif term_type == 'sen':
-                chamber = 'senate'
-            else:
-                chamber = term_type
-                
-            # Get state and district
-            state_abbrev = term.get('state')
-            district = term.get('district')
-            district_code = f"{state_abbrev}{district:02d}" if district and state_abbrev else state_abbrev
-            
-            # Create a row for each congress in the term range
-            for congress in range(start_congress, end_congress + 1):
-                # Calculate the start and end dates for this specific congress
-                congress_start_year = 1789 + (congress - 1) * 2
-                congress_end_year = congress_start_year + 1
-                congress_start_date = f"{congress_start_year}-01-03"
-                congress_end_date = f"{congress_end_year}-12-31"
-                
-                # Find leadership roles that overlap with this specific congress
-                term_leadership_roles = []
-                for role in leadership_roles:
-                    role_start = role.get('start')
-                    role_end = role.get('end')
-                    role_chamber = role.get('chamber')
-                    
-                    # Check if role overlaps with this congress and matches chamber
-                    if (role_chamber == chamber or role_chamber is None) and role_start:
-                        # Check overlap with this specific congress
-                        if role_start <= congress_end_date and (role_end or '9999-12-31') >= congress_start_date:
-                            term_leadership_roles.append(role.get('title', ''))
-                
-                # Join leadership roles with "/"
-                leadership_str = '/'.join(term_leadership_roles) if term_leadership_roles else ''
-                
-                # Create row for this congress
-                row = {
-                    'first_name': first_name,
-                    'last_name': last_name,
-                    'nickname': nickname,
-                    'chamber': chamber,
-                    'congress': congress,
-                    'icpsr': icpsr,
-                    'district_code': district_code,
-                    'state_abbrev': state_abbrev,
-                    'leadership_roles': leadership_str,
-                    'gender': gender
-                }
-                rows.append(row)
-    
+        rows.extend(process_legislator(legislator))
     return pd.DataFrame(rows)
 
-# Process current and historical data
-current_csv = process_legislators(current_data)
-historical_csv = process_legislators(historical_data)
 
-# Combine current and historical legislators (append)
-all_csv = pd.concat([current_csv, historical_csv])
+def save_dataframe(df: pd.DataFrame, output_paths: list[str]) -> None:
+    for path_str in output_paths:
+        path = Path(path_str)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(path, index=False)
 
-# Save to CSV
-all_csv.to_csv("datastore/inference/congress_legislators.csv", index=False)
-all_csv.to_csv("datastore/inference/daily_harmonized/congress_legislators.csv", index=False)
+
+def main() -> None:
+    current_data = read_yaml(CURRENT_URL)
+    historical_data = read_yaml(HISTORICAL_URL)
+
+    current_df = process_legislators(current_data)
+    historical_df = process_legislators(historical_data)
+
+    all_df = pd.concat([current_df, historical_df], ignore_index=True)
+    save_dataframe(all_df, OUTPUT_PATHS)
+
+
+if __name__ == "__main__":
+    main()
