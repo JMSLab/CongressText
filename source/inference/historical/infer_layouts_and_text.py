@@ -257,7 +257,7 @@ def load_progress_dataframes(chunk_file: str, cfg: InferenceConfig) -> Inference
     paths = build_master_paths(cfg)
 
     if not os.path.isfile(chunk_file):
-        raise RuntimeError("List of files to process does not exist. Run split_df_for_jobs.py")
+        raise RuntimeError("List of files to process does not exist. Run source/inference/historical/split_df_for_jobs.py")
 
     docs_df = pd.read_csv(chunk_file)
     sections_df = pd.read_csv(paths["sectionsdf_path"])

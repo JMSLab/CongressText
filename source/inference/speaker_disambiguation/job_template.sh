@@ -44,5 +44,5 @@ case "${MODE}" in
     ;;
 esac
 
-python source/inference/identify_speakers/identify_speakers.py "${INPUT_PATH}" "${OUTPUT_DIR}"
+python source/inference/speaker_disambiguation/identify_speakers.py "${INPUT_PATH}" "${OUTPUT_DIR}"
 
