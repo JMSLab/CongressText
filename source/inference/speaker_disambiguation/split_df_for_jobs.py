@@ -10,7 +10,7 @@ docsdf_path = inference_dir + "/docs.csv"
 
 # construct CSV for progress if needed
 if not os.path.isfile(docsdf_path):
-	raise RuntimeError("Master CSV of files to process does not exist. Run inference/split_df_for_jobs.py")
+	raise RuntimeError("Master CSV of files to process does not exist. Run source/inference/historical/split_df_for_jobs.py")
 
 
 # Load the document list

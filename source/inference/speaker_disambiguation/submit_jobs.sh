@@ -25,6 +25,6 @@ esac
 num_chunks=100   # number of original chunk_* files
 
 for i in $(seq 0 $((num_chunks - 1))); do
-  sbatch source/inference/identify_speakers/job_template.sh "$MODE" "$i"
+  sbatch source/inference/speaker_disambiguation/job_template.sh "$MODE" "$i"
 done
 

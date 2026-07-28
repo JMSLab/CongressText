@@ -348,7 +348,7 @@ def get_speakers(legislators, speech_dta, congress, algorithm):
 def load_chunk_file(chunk_file):
     if os.path.isfile(chunk_file):
         return pd.read_csv(chunk_file)
-    raise RuntimeError("List of files to process does not exist. Run identify_speakers/split_df_for_jobs.py")
+    raise RuntimeError("List of files to process does not exist. Run speaker_disambiguation/split_df_for_jobs.py")
 
 
 def build_input_path(inference_dir, title):
