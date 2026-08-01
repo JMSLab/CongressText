@@ -27,3 +27,10 @@ This repository produces text data containing the speeches contained in the Cong
 2. [Parse](./source/inference/daily/submit_jobs_parse_daily.sh) daily Congressional record, using the [congressional-record](https://github.com/unitedstates/congressional-record/tree/main) repository.
 3. [Convert](./source/inference/daily/submit_jobs_daily_to_historical_schema.sh) from daily to historical schema.
 
+
+### Output structure
+
+In `/output/inference`
+* `identified_speakers_YYYY_ptN.csv`: `speaker_id` (key), `icpsr` (foreign key), metadata
+* 
+
