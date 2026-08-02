@@ -30,7 +30,9 @@ This repository produces text data containing the speeches contained in the Cong
 
 ### Output structure
 
-In `/output/inference`
-* `identified_speakers_YYYY_ptN.csv`: `speaker_id` (key), `icpsr` (foreign key), metadata
-* 
+Key processed files are in `datastore/output/inference`:
+* `sections_YYYY_ptP.csv`: `section_id` (key), `year`, `part_page` (foreign key), metadata
+* `speeches_YYYY_ptP.csv`: `speech_id` (key), `section_id` (foreign key), `speaker_id` (foreign key)
+* `paragraphs_YYYY_pyP.csv`: `paragraph_id` (key), `speech_id` (foreign key), `paragraph_order`, `paragraph_text`
+* `identified_speakers_YYYY_ptP.csv`: `speaker_id` (key), `icpsr` (foreign key), metadata
 
