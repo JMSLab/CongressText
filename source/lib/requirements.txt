@@ -20,7 +20,7 @@ ijson~=3.2.0.post0
 -e git+https://github.com/unitedstates/congressional-record.git@ec0850412acffd0fc2dc6ed79fbd376e4699439d#egg=congressionalrecord
 -e git+https://github.com/unitedstates/congress-legislators.git
 layoutparser[ocr]
-tesseract
+pytesseract
 efficient_ocr
 PyMuPDF
 numpy==1.23.5
@@ -28,3 +28,9 @@ opencv-python==4.10.0.84
 pdf2image==1.17.0
 fuzzywuzzy
 python-Levenshtein
+PyPDF2
+matplotlib
+pycocotools
+# detectron2 is required by source/training but is not on PyPI and must be built
+# against the local CUDA/PyTorch versions. See source/training/README.md.
+

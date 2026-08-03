@@ -1,0 +1,12 @@
+*** Builder log created: {2026-08-03 11:47:19}
+*** Builder log completed: {2026-08-03 11:47:22}
+sections: 5 part files, 22558 rows read, 6736 after dropping duplicate section_id
+speeches: 5 part files, 238390 rows read, 67033 after dropping duplicate speech_id
+identified_speakers: 5 part files, 19191 rows read, 4993 after dropping duplicate speaker_id
+speeches: 66913 of 67033 rows are from 1895
+speaker_id match rate: 0.5196
+216 legislators after excluding procedural speakers
+senate: 15 legislators plotted
+house: 15 legislators plotted
+Wrote output\analysis\top_speakers.png
+Wrote output\analysis\top_speakers.csv (30 rows)
