@@ -31,6 +31,5 @@ python-Levenshtein
 PyPDF2
 matplotlib
 pycocotools
-# detectron2 is required by source/training but is not on PyPI and must be built
-# against the local CUDA/PyTorch versions. See source/training/README.md.
+# detectron2
 
