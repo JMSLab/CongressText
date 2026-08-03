@@ -29,29 +29,18 @@ The steps are outlined below.
 3. [Convert](./source/inference/daily/submit_jobs_daily_to_historical_schema.sh) from daily to historical schema.
 
 ### Output structure
+Key processed files for the (historical, 1872-1998) bound Congressional Record are in `datastore/inference`.
 
-Key processed files for the (historical) bound Congressional Record are in `datastore/inference`:
+Key processed files for the (modern, 1994-2025) daily Congressional Record, converted to the historical schema, are in `datastore/inference/daily_harmonized/YYYY`.
+
+The schema is:
 * `sections_YYYY_ptP.csv`: `section_id` (key), `year`, `part_page` (foreign key), metadata
 * `speeches_YYYY_ptP.csv`: `speech_id` (key), `section_id` (foreign key), `speaker_id` (foreign key)
 * `paragraphs_YYYY_ptP.csv`: `paragraph_id` (key), `speech_id` (foreign key), `paragraph_order`, `paragraph_text`
 * `speakers_YYYY_ptP.csv`: `speaker_id` (key), `speaker_name`
 * `identified_speakers_YYYY_ptP.csv`: `speaker_id` (key), `icpsr` (foreign key), metadata
-
-Files for the (modern) daily Congressional Record, converted to the historical schema, are in `datastore/inference/daily_harmonized/YYYY` and follow the same schema, with `P` a date rather than an integer (e.g. `sections_2022_pt20220104.csv`):
-* `sections_YYYY_ptP.csv`: `section_id` (key), `year`, `part_page` (foreign key), metadata
-* `speeches_YYYY_ptP.csv`: `speech_id` (key), `section_id` (foreign key), `speaker_id` (foreign key)
-* `paragraphs_YYYY_ptP.csv`: `paragraph_id` (key), `speech_id` (foreign key), `paragraph_order`, `paragraph_text`
-* `speakers_YYYY_ptP.csv`: `speaker_id` (key), `speaker_name`
-* `identified_speakers_YYYY_ptP.csv`: `speaker_id` (key), `icpsr` (foreign key), metadata
-
-`YYYY` spans 1873-1998 for the bound record and 1994-2025 for the daily record.
 
 Note that `speaker_id` identifies a speaker *name as it appears in the text*, while `icpsr` identifies an actual legislator; several `speaker_id` may map to one `icpsr`.
 
 #### Reading these files
-
-Within a job, each file accumulates every document processed so far, and `P` names the last document processed rather than the file's contents. A file may therefore contain rows from several years, and a year's parts overlap heavily. To read a year, concatenate all of its parts, drop duplicates on the key column, and select the year via `sections.year` rather than the filename. See `load_year_family` in [`source/analysis/plot.py`](./source/analysis/plot.py) for an example.
-
-To illustrate the contents of the files, [this script](./source/analysis/plot.py) plots the legislators who gave the most speeches, separately by chamber, for the year 1895.
-
-
+Within a job, each file accumulates every document processed so far, and `P` names the last document processed rather than the file's contents. A file may therefore contain rows from several years, and a year's parts overlap heavily. To read a year, concatenate all of its parts, drop duplicates on the key column, and select the year via `sections.year` rather than the filename. See `load_year_family` in [`source/analysis/plot.py`](./source/analysis/plot.py) for an example use case.
