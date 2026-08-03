@@ -1,14 +1,4 @@
-"""Proof-of-concept figure: legislators who gave the most speeches, by chamber.
-
-Reads the processed Congressional Record output in datastore/inference and plots
-the top speakers separately for the Senate and the House, excluding speakers who
-appear only in a procedural role (Speaker, Vice-President, President, Presiding
-Officer).
-
-Speech counts are aggregated by `icpsr`, which identifies an actual legislator.
-`speaker_id` only identifies a speaker name as it appears in the text, and several
-`speaker_id` may map to the same `icpsr`.
-"""
+"""Plot the legislators who gave the most speeches in a year, by chamber."""
 
 import argparse
 import glob
@@ -25,12 +15,11 @@ import pandas as pd
 
 CHAMBERS = ['senate', 'house']
 
-# `position` values assigned by inference/speaker_disambiguation/identify_speakers.py.
-# Position 0 (unmatched) is already dropped there; 1 is an ordinary member.
+# Speaker, Vice-President, President and Presiding Officer
 PROCEDURAL_POSITIONS = ['2', '3', '4', '5']
 
-# Below this share of speeches joining to an identified speaker, we treat the
-# speaker keys as broken rather than merely incomplete and emit a placeholder.
+# Below this share of speeches joining to an identified speaker, treat the speaker
+# keys as broken rather than merely incomplete.
 MIN_MATCH_RATE = 0.05
 
 KEY_COLUMNS = {
@@ -52,7 +41,6 @@ def parse_args(argv=None):
 
 
 def part_files(inference_dir, family, year):
-    """Return a year's part files, ordered by part number rather than by name."""
     pattern = os.path.join(inference_dir, f"{family}_{year}_pt*.csv")
     files = glob.glob(pattern)
 
@@ -66,14 +54,6 @@ def part_files(inference_dir, family, year):
 
 
 def load_year_family(inference_dir, family, year):
-    """Read every part file for a year and drop the rows they duplicate.
-
-    Within a job, each part file accumulates every document processed so far, so
-    the parts of a year overlap heavily and a file may hold rows from several
-    years. Concatenating the parts and deduplicating on the key recovers the
-    year's rows exactly once; reading only the highest part would miss rows
-    written by a different job.
-    """
     key = KEY_COLUMNS[family]
     files = part_files(inference_dir, family, year)
 
@@ -88,7 +68,6 @@ def load_year_family(inference_dir, family, year):
 
 
 def select_year(speeches, sections, year):
-    """Keep the speeches belonging to `year`, per the section they appear in."""
     dated = speeches.merge(sections[['section_id', 'year']], on='section_id', how='left')
     selected = dated[dated['year'] == str(year)]
 
@@ -98,15 +77,13 @@ def select_year(speeches, sections, year):
 
 
 def compute_match_rate(speeches, identified):
-    """Share of speeches whose speaker_id resolves to an identified speaker."""
     if len(speeches) == 0:
         return 0.0
 
     return speeches['speaker_id'].isin(set(identified['speaker_id'])).mean()
 
 
-def build_speech_person_table(speeches, identified, top_n):
-    """Count speeches per legislator, dropping procedural speakers."""
+def build_speech_person_table(speeches, identified):
     columns = ['speaker_id', 'position', 'icpsr', 'chamber',
                'lastname', 'firstname', 'state_abbrev']
     merged = speeches.merge(identified[columns], on='speaker_id', how='left')
@@ -140,7 +117,6 @@ def format_label(row):
 
 
 def top_speakers_by_chamber(counts, top_n):
-    """Take the top `top_n` legislators per chamber, breaking ties by name."""
     panels = {}
 
     for chamber in CHAMBERS:
@@ -157,7 +133,6 @@ def top_speakers_by_chamber(counts, top_n):
 
 
 def make_dotplot(panels, year, out_path):
-    """Draw one horizontal dot plot per chamber, most speeches at the top."""
     figure, axes = plt.subplots(1, len(CHAMBERS), figsize=(13, 7))
 
     for axis, chamber in zip(axes, CHAMBERS):
@@ -186,19 +161,14 @@ def make_dotplot(panels, year, out_path):
     print(f"Wrote {out_path}")
 
 
-def make_placeholder(year, diagnostics, out_path):
-    """Draw a labelled placeholder when the speaker keys do not join.
-
-    The figure is still produced so that the build stays reproducible and the
-    reason is visible in the output rather than only in the log.
-    """
+def make_placeholder(diagnostics, out_path):
     figure, axis = plt.subplots(figsize=(13, 7))
     axis.axis('off')
 
-    body = '\n'.join(diagnostics)
     axis.text(0.5, 0.95, 'PLACEHOLDER - FIGURE NOT PRODUCED',
               ha='center', va='top', fontsize=15, fontweight='bold', color='#7f1d1d')
-    axis.text(0.02, 0.82, body, ha='left', va='top', fontsize=10, family='monospace')
+    axis.text(0.02, 0.82, '\n'.join(diagnostics),
+              ha='left', va='top', fontsize=10, family='monospace')
 
     figure.tight_layout()
     figure.savefig(out_path, dpi=150)
@@ -208,7 +178,6 @@ def make_placeholder(year, diagnostics, out_path):
 
 
 def write_counts(panels, out_path):
-    """Write the plotted counts, or a header-only file in placeholder mode."""
     columns = ['chamber', 'icpsr', 'lastname', 'firstname', 'state_abbrev', 'n_speeches']
 
     if panels:
@@ -223,7 +192,6 @@ def write_counts(panels, out_path):
 
 
 def describe_id_range(frame, label):
-    """Summarise the numeric tail of speaker_id, to expose renumbering."""
     numbers = (frame['speaker_id'].dropna().astype(str)
                                  .str.extract(r"_(\d+)$", expand=False)
                                  .dropna().astype(int))
@@ -232,6 +200,28 @@ def describe_id_range(frame, label):
         return f"  {label}: no speaker_id values"
 
     return f"  {label}: n={len(numbers)}, speaker_id suffix {numbers.min()}-{numbers.max()}"
+
+
+def diagnose(year, speeches, identified, match_rate, empty_chambers):
+    return [
+        f"Year requested: {year}",
+        f"Speeches in {year}: {len(speeches)}",
+        f"Identified speakers available: {len(identified)}",
+        f"speaker_id match rate: {match_rate:.4f} (need >= {MIN_MATCH_RATE})",
+        f"Chambers with no speakers: {', '.join(empty_chambers)}",
+        "",
+        "speaker_id is a positional surrogate key, assigned by row order when",
+        "speaker_disambiguation runs. Regenerating the upstream sections/speeches",
+        "files renumbers it, so identified_speakers_*.csv produced by an earlier",
+        "run no longer joins to speeches_*.csv.",
+        "",
+        describe_id_range(speeches, 'speeches'),
+        describe_id_range(identified, 'identified_speakers'),
+        "",
+        "To fix: re-run source/inference/speaker_disambiguation against the current",
+        "sections/speeches files, then re-run this script. Years known to be",
+        "affected: 1873, 1901, 1902, 1903, 1904.",
+    ]
 
 
 def main(args):
@@ -250,34 +240,17 @@ def main(args):
 
     panels = {}
     if match_rate >= MIN_MATCH_RATE:
-        counts = build_speech_person_table(speeches, identified, args.top_n)
-        panels = top_speakers_by_chamber(counts, args.top_n)
+        panels = top_speakers_by_chamber(build_speech_person_table(speeches, identified),
+                                         args.top_n)
 
     empty_chambers = [chamber for chamber in CHAMBERS if len(panels.get(chamber, [])) == 0]
 
+    # Every declared target must be written, or scons treats the build as failed.
     if empty_chambers:
-        diagnostics = [
-            f"Year requested: {args.year}",
-            f"Speeches in {args.year}: {len(speeches)}",
-            f"Identified speakers available: {len(identified)}",
-            f"speaker_id match rate: {match_rate:.4f} (need >= {MIN_MATCH_RATE})",
-            f"Chambers with no speakers: {', '.join(empty_chambers)}",
-            "",
-            "speaker_id is a positional surrogate key, assigned by row order when",
-            "speaker_disambiguation runs. Regenerating the upstream sections/speeches",
-            "files renumbers it, so identified_speakers_*.csv produced by an earlier",
-            "run no longer joins to speeches_*.csv.",
-            "",
-            describe_id_range(speeches, 'speeches'),
-            describe_id_range(identified, 'identified_speakers'),
-            "",
-            "To fix: re-run source/inference/speaker_disambiguation against the current",
-            "sections/speeches files, then re-run this script. Years known to be",
-            "affected: 1873, 1901, 1902, 1903, 1904.",
-        ]
+        diagnostics = diagnose(args.year, speeches, identified, match_rate, empty_chambers)
         for line in diagnostics:
             print(line)
-        make_placeholder(args.year, diagnostics, figure_path)
+        make_placeholder(diagnostics, figure_path)
         write_counts({}, counts_path)
         return 0
 
