@@ -44,3 +44,11 @@ Note that `speaker_id` identifies a speaker *name as it appears in the text*, wh
 
 #### Reading these files
 Within a job, each file accumulates every document processed so far, and `P` names the last document processed rather than the file's contents. A file may therefore contain rows from several years, and a year's parts overlap heavily. To read a year, concatenate all of its parts, drop duplicates on the key column, and select the year via `sections.year` rather than the filename. See `load_year_family` in [`source/analysis/plot.py`](./source/analysis/plot.py) for an example use case.
+
+
+
+### Terms of Use
+
+If using this repository in your work, please cite it as follows:
+
+Kao, Andrew and Jesse M. Shapiro. 2026. CongressText. Code and data repository at https://github.com/JMSLab/CongressText.
