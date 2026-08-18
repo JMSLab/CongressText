@@ -25,10 +25,3 @@
 *.handout.pdf
 *.handout.lyx
 
-# git-lfs files cannot be included in a template repository
-output/analysis/plots/gdp_educ.png
-output/paper/TemplateLyx.pdf
-output/paper/TemplateTex.pdf
-output/talk/TemplateSlides.pdf
-
-
